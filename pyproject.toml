@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gym-mujoco-drones"
+name = "mj-drones-gym"
 version = "1.0.0"
 description = "MuJoCo-based multi-drone Gymnasium environments for single and multi-agent RL"
 readme = "README.md"

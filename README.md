@@ -1,8 +1,8 @@
-# gym-mujoco-drones
+# MJ-drones-gym
 
 **MuJoCo-based multi-drone Gymnasium environments for single and multi-agent reinforcement learning of quadcopter control.**
 
-A high-fidelity replacement for [gym-pybullet-drones](https://github.com/learnsyslab/gym-pybullet-drones), using [MuJoCo](https://mujoco.org/) as the physics backend and the [Bitcraze Crazyflie 2.x](https://www.bitcraze.io/products/crazyflie-2-1/) model from [mujoco_menagerie](https://github.com/google-deepmind/mujoco_menagerie).
+High-fidelity quadcopter simulation with GPU-vectorized environments, Dryden wind turbulence, domain randomization, obstacle generation, and curriculum learning — all built on [MuJoCo](https://mujoco.org/).
 
 ## Features
 
@@ -166,11 +166,17 @@ multi_drone_mujoco/
 If you use this work, please cite:
 
 ```bibtex
-@software{gym_mujoco_drones,
-  title={gym-mujoco-drones: MuJoCo Multi-Drone Environments for RL},
+@software{mj_drones_gym,
+  title={MJ-drones-gym: MuJoCo Multi-Drone Environments for RL},
   year={2026},
 }
 ```
+
+## Acknowledgements
+
+- [gym-pybullet-drones](https://github.com/learnsyslab/gym-pybullet-drones) — inspiration for the environment API and task design
+- [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) — Bitcraze Crazyflie 2.x MJCF model
+- [Bitcraze](https://www.bitcraze.io/) — Crazyflie 2.x hardware platform and firmware parameters
 
 ## License
 
