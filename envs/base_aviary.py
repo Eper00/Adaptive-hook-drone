@@ -1059,12 +1059,12 @@ class BaseAviary(gym.Env):
                     camera.elevation = -10
 
             elif camera_mode == self.CAMERA_FRONT:
-                # Front view: camera looks along X-axis at the Y-Z plane
+                # Side view: camera looks along X-axis to see Y-Z plane
                 camera.type = mujoco.mjtCamera.mjCAMERA_FREE
                 centroid = self.pos.mean(axis=0)
-                camera.lookat[:] = centroid
-                camera.distance = 2.0
-                camera.azimuth = 90
+                camera.lookat[:] = [0, 0, 1.0]
+                camera.distance = 2.5
+                camera.azimuth = 180
                 camera.elevation = 0
 
             elif camera_mode == self.CAMERA_FIXED:
