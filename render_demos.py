@@ -285,17 +285,17 @@ def demo_vertical_circle():
     ctrl = PIDControl(env)
     env.reset()
 
-    # Stabilize at starting point of circle (radius=0.5, center at y=0, z=1.0)
-    radius = 0.5
-    center = np.array([0.0, 0.0, 1.0])
+    # Stabilize at starting point of circle (radius=0.35, center at y=0, z=1.2)
+    radius = 0.35
+    center = np.array([0.0, 0.0, 1.2])
     start_target = center + np.array([0.0, radius, 0.0])
-    stabilize(env, ctrl, start_target, steps=600)
+    stabilize(env, ctrl, start_target, steps=800)
 
     frames_track = []
     frames_front = []
-    total_steps = 600  # ~2 full loops
+    total_steps = 960  # 1 slow loop for good tracking
     for i in range(total_steps):
-        theta = 2 * np.pi * (i / 300)  # one loop per 300 steps
+        theta = 2 * np.pi * (i / 960)  # one loop per 960 steps (20s) - slow for circular tracking
         # Circle in Y-Z plane
         target = center + np.array([0.0, radius * np.cos(theta), radius * np.sin(theta)])
         rpm, _, _ = ctrl.computeControl(
