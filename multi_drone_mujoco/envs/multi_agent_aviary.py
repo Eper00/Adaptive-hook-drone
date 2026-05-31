@@ -156,6 +156,11 @@ class MultiAgentAviary(ParallelEnv):
                 or abs(self._env.rpy[i, 1]) > np.pi / 2
             )
             terminations[agent] = terminated
+            
+            if terminated:
+                reward -= 100.0
+                
+            rewards[agent] = float(reward)
 
             truncated = self._step_count * self._env.CTRL_TIMESTEP >= self._episode_len_sec
             truncations[agent] = truncated

@@ -97,6 +97,10 @@ class MultiHoverAviary(BaseAviary):
             total -= 0.05 * (abs(self.rpy[i, 0]) + abs(self.rpy[i, 1]))
             if height_err < 0.05:
                 total += 0.5
+                
+        if self._computeTerminated():
+            total -= 100.0
+            
         return float(total)
 
     def _computeTerminated(self):

@@ -140,6 +140,10 @@ class FormationAviary(BaseAviary):
                 total -= 0.5 * abs(actual_dist - desired_dist)
 
         self._advance_path()
+        
+        if self._computeTerminated():
+            total -= 100.0
+            
         return float(total)
 
     def _computeTerminated(self):

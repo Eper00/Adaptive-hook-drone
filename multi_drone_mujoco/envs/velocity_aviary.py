@@ -77,6 +77,10 @@ class VelocityAviary(BaseAviary):
         # Bonus for tracking
         if vel_error < 0.05:
             reward += 0.5
+            
+        if self._computeTerminated():
+            reward -= 100.0
+            
         return float(reward)
 
     def _computeTerminated(self):

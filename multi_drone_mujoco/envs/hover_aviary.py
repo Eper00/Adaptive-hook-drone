@@ -91,6 +91,9 @@ class HoverAviary(BaseAviary):
         if height_error < 0.05 and xy_error < 0.05:
             reward += 1.0
 
+        if self._computeTerminated():
+            reward -= 100.0
+
         return float(reward)
 
     def _computeTerminated(self):

@@ -120,6 +120,9 @@ class RaceAviary(BaseAviary):
             if self.pos[i, 2] < 0.1:
                 total -= 1.0
 
+        if self._computeTerminated():
+            total -= 100.0
+
         return float(total)
 
     def _computeTerminated(self):

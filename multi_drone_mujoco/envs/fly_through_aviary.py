@@ -108,6 +108,9 @@ class FlyThroughAviary(BaseAviary):
             total -= dist * 0.1  # Approach reward
             total -= 0.01 * np.linalg.norm(self.ang_v[i])  # Smooth flight
 
+        if self._computeTerminated():
+            total -= 100.0
+
         return float(total)
 
     def _computeTerminated(self):
