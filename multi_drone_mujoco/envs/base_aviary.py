@@ -95,9 +95,28 @@ DRONE_PARAMS = {
         "collision_r": 0.15,
         "collision_z_offset": 0.0,
     },
+    DroneModel.BB_HOOK: {
+        "mass": 0.605,                     # MASS
+        "arm_length": 0.091,               # OFFSET_X2 (nagyobbik karhossz)
+        "thrust2weight_ratio": 15 / (0.605 * 9.81),  # MAX_THRUST / (m*g)
+        "ixx": 1.5e-3,                     # DIAGINERTIA
+        "iyy": 1.45e-3,
+        "izz": 2.66e-3,
+        "kf": 9.3945e-7,                   # THRUST_FORCE_COEFF
+        "km": 9.3945e-7 * 0.5954,          # MOTOR_PARAM * kf
+        "prop_radius": 0.0635,             # (nincs megadva → RACE értékét használjuk)
+        "max_speed_kmh": 30.0,             # nincs adat → CF2 érték
+        "gnd_eff_coeff": 11.36859,         # CF2 / RACE default
+        "drag_coeff_xy": 9.1785e-7,
+        "drag_coeff_z": 10.311e-7,
+        "dw_coeff_1": 2267.18,
+        "dw_coeff_2": 0.16,
+        "dw_coeff_3": -0.11,
+        "collision_h": 0.06,               # RACE default
+        "collision_r": 0.15,
+        "collision_z_offset": 0.0,
+    },
 }
-
-
 def _generate_aviary_xml(
     num_drones: int,
     drone_model: DroneModel,
@@ -109,9 +128,9 @@ def _generate_aviary_xml(
 ) -> str:
     """Generate MuJoCo XML for the aviary with N drones."""
     meshdir = str(CF2_MESH_DIR)
+    tentacle_mesh = str(ASSETS_PATH)
     params = DRONE_PARAMS[drone_model]
 
-    # Visual and collision meshes
     visual_meshes = "\n".join(
         f'    <mesh file="{meshdir}/cf2_{i}.obj" name="cf2_vis_{i}"/>'
         for i in range(7)
@@ -121,20 +140,209 @@ def _generate_aviary_xml(
         for i in range(32)
     )
 
-    # Drone bodies with 4 propeller sites for force application
     mass = params["mass"]
     ixx, iyy, izz = params["ixx"], params["iyy"], params["izz"]
     L = params["arm_length"]
 
     drone_bodies = ""
-    actuators = ""
     sensors = ""
 
+    # --- HOOK LÁNC, CSAK BB_HOOK ESETÉN ---
+    HOOK_XML = """
+      <body name="segment_1" pos="0 0 -0.13">
+        <inertial pos="0 0 0" mass="0.005" diaginertia="1e-5 1e-5 1e-5"/>
+        <joint name="link_1" type="hinge" axis="1 0 0" range="-1.57079632679 1.57079632679"/>
+
+        <geom name="segment_geom_1"
+            type="box"
+            size="0.01 0.01 0.10"
+            rgba="0.2 0.2 0.8 1"
+            contype="1" conaffinity="1" condim="3"/>
+
+        <site name="s1_1" pos="0 0.008 0.03" size="0.001"/>
+        <site name="s1_2" pos="0 0.008 0.07" size="0.001"/>
+        <site name="s1_3" pos="0 -0.008 0.03" size="0.001"/>
+        <site name="s1_4" pos="0 -0.008 0.07" size="0.001"/>
+
+        <body name="segment_2" pos="0 0 -0.11">
+            <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
+            <joint name="link_2" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+
+            <geom name="segment_geom_2"
+                type="capsule"
+                fromto="0 0 0   0 0 -0.040"
+                size="0.010"
+                rgba="0.8 0.4 0.2 1"
+                contype="1" conaffinity="1" condim="3"/>
+
+            <site name="s2_1" pos="0 0.009 -0.012" size="0.001"/>
+            <site name="s2_2" pos="0 0.009 -0.030" size="0.001"/>
+            <site name="s2_3" pos="0 -0.009 -0.012" size="0.001"/>
+            <site name="s2_4" pos="0 -0.009 -0.030" size="0.001"/>
+
+            <body name="segment_3" pos="0 0 -0.055">
+                <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
+                <joint name="link_3" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+
+                <geom name="segment_geom_3"
+                    type="capsule"
+                    fromto="0 0 0   0 0 -0.025"
+                    size="0.007"
+                    rgba="0.8 0.4 0.2 1"
+                    contype="1" conaffinity="1" condim="3"/>
+
+                <site name="s3_1" pos="0 0.006 -0.008" size="0.0009"/>
+                <site name="s3_2" pos="0 0.006 -0.020" size="0.0009"/>
+                <site name="s3_3" pos="0 -0.006 -0.008" size="0.0009"/>
+                <site name="s3_4" pos="0 -0.006 -0.020" size="0.0009"/>
+
+                <body name="segment_4" pos="0 0 -0.035">
+                    <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
+                    <joint name="link_4" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+
+                    <geom name="segment_geom_4"
+                        type="capsule"
+                        fromto="0 0 0   0 0 -0.015"
+                        size="0.005"
+                        rgba="0.8 0.4 0.2 1"
+                        contype="1" conaffinity="1" condim="3"/>
+
+                    <site name="s4_1" pos="0 0.004 -0.005" size="0.0008"/>
+                    <site name="s4_2" pos="0 0.004 -0.013" size="0.0008"/>
+                    <site name="s4_3" pos="0 -0.004 -0.005" size="0.0008"/>
+                    <site name="s4_4" pos="0 -0.004 -0.013" size="0.0008"/>
+
+                    <body name="segment_5" pos="0 0 -0.025">
+                        <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
+                        <joint name="link_5" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+
+                        <geom name="segment_geom_5"
+                            type="capsule"
+                            fromto="0 0 0   0 0 -0.010"
+                            size="0.004"
+                            rgba="0.8 0.4 0.2 1"
+                            contype="1" conaffinity="1" condim="3"/>
+
+                        <site name="s5_1" pos="0 0.003 -0.004" size="0.0007"/>
+                        <site name="s5_2" pos="0 0.003 -0.009" size="0.0007"/>
+                        <site name="s5_3" pos="0 -0.003 -0.004" size="0.0007"/>
+                        <site name="s5_4" pos="0 -0.003 -0.009" size="0.0007"/>
+
+                        <body name="segment_6" pos="0 0 -0.018">
+                            <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
+                            <joint name="link_6" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+
+                            <geom name="segment_geom_6"
+                                type="capsule"
+                                fromto="0 0 0   0 0 -0.006"
+                                size="0.003"
+                                rgba="0.8 0.4 0.2 1"
+                                contype="1" conaffinity="1" condim="3"/>
+
+                            <site name="s6_1" pos="0 0.0025 -0.003" size="0.0006"/>
+                            <site name="s6_2" pos="0 0.0025 -0.006" size="0.0006"/>
+                            <site name="s6_3" pos="0 -0.0025 -0.003" size="0.0006"/>
+                            <site name="s6_4" pos="0 -0.0025 -0.006" size="0.0006"/>
+
+                            <body name="segment_7" pos="0 0 -0.012">
+                                <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
+                                <joint name="link_7" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+
+                                <geom name="segment_geom_7"
+                                    type="capsule"
+                                    fromto="0 0 0   0 0 -0.003"
+                                    size="0.003"
+                                    rgba="0.8 0.4 0.2 1"
+                                    contype="1" conaffinity="1" condim="3"/>
+
+                                <site name="s7_1" pos="0 0.002 -0.0015" size="0.0005"/>
+                                <site name="s7_2" pos="0 0.002 -0.003" size="0.0005"/>
+                                <site name="s7_3" pos="0 -0.002 -0.0015" size="0.0005"/>
+                                <site name="s7_4" pos="0 -0.002 -0.003" size="0.0005"/>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+        </body>
+      </body>
+"""
+
+    HOOK_TENDONS = """
+<tendon>
+    <spatial name="tendon1" width="0.0007" frictionloss="0.1"
+             rgba=".95 .3 .3 1" limited="true"
+             range="0.185632848 1.160205301">
+
+        <site site="s1_1"/>
+        <site site="s1_2"/>
+
+        <site site="s2_1"/>
+        <site site="s2_2"/>
+
+        <site site="s3_1"/>
+        <site site="s3_2"/>
+
+        <site site="s4_1"/>
+        <site site="s4_2"/>
+
+        <site site="s5_1"/>
+        <site site="s5_2"/>
+
+        <site site="s6_1"/>
+        <site site="s6_2"/>
+
+        <site site="s7_1"/>
+        <site site="s7_2"/>
+    </spatial>
+
+    <spatial name="tendon2" width="0.0007" frictionloss="0.1"
+             rgba=".95 .3 .3 1" limited="true"
+             range="0.185632848 1.160205301">
+
+        <site site="s1_3"/>
+        <site site="s1_4"/>
+
+        <site site="s2_3"/>
+        <site site="s2_4"/>
+
+        <site site="s3_3"/>
+        <site site="s3_4"/>
+
+        <site site="s4_3"/>
+        <site site="s4_4"/>
+
+        <site site="s5_3"/>
+        <site site="s5_4"/>
+
+        <site site="s6_3"/>
+        <site site="s6_4"/>
+
+        <site site="s7_3"/>
+        <site site="s7_4"/>
+    </spatial>
+</tendon>
+"""
+
+    HOOK_ACTUATORS = """
+<actuator>
+    <position name="act1" tendon="tendon1"
+              kp="20.0" ctrllimited="true"
+              ctrlrange="-1 1"
+              lengthrange="0.185632848 1.160205301"/>
+
+    <position name="act2" tendon="tendon2"
+              kp="20.0" ctrllimited="true"
+              ctrlrange="-1 1"
+              lengthrange="0.185632848 1.160205301"/>
+</actuator>
+"""
+
+    # --- DRÓNOK GENERÁLÁSA ---
     for d in range(num_drones):
         x, y, z = init_xyzs[d]
-        # Convert RPY to quaternion for initial orientation
         r, p_angle, yaw = init_rpys[d]
-        # Simple RPY to quat (small angles)
+
         cr, sr = np.cos(r / 2), np.sin(r / 2)
         cp, sp = np.cos(p_angle / 2), np.sin(p_angle / 2)
         cy, sy = np.cos(yaw / 2), np.sin(yaw / 2)
@@ -145,22 +353,21 @@ def _generate_aviary_xml(
 
         prefix = f"drone{d}"
 
-        # Propeller positions (X-configuration for CF2X)
         if drone_model == DroneModel.CF2X:
             prop_offsets = [
-                (L / np.sqrt(2), L / np.sqrt(2), 0),    # front-left
-                (-L / np.sqrt(2), L / np.sqrt(2), 0),   # front-right (corrected)
-                (-L / np.sqrt(2), -L / np.sqrt(2), 0),  # rear-right
-                (L / np.sqrt(2), -L / np.sqrt(2), 0),   # rear-left
+                (L / np.sqrt(2), L / np.sqrt(2), 0),
+                (-L / np.sqrt(2), L / np.sqrt(2), 0),
+                (-L / np.sqrt(2), -L / np.sqrt(2), 0),
+                (L / np.sqrt(2), -L / np.sqrt(2), 0),
             ]
         elif drone_model == DroneModel.CF2P:
             prop_offsets = [
-                (L, 0, 0),     # front
-                (0, L, 0),     # left
-                (-L, 0, 0),    # rear
-                (0, -L, 0),    # right
+                (L, 0, 0),
+                (0, L, 0),
+                (-L, 0, 0),
+                (0, -L, 0),
             ]
-        else:  # RACE (same as X)
+        else:  # RACE / BB_HOOK same as X
             prop_offsets = [
                 (L / np.sqrt(2), L / np.sqrt(2), 0),
                 (-L / np.sqrt(2), L / np.sqrt(2), 0),
@@ -172,7 +379,7 @@ def _generate_aviary_xml(
         for pi, (px, py, pz) in enumerate(prop_offsets):
             prop_sites += f'      <site name="{prefix}_prop{pi}" pos="{px} {py} {pz}" group="5"/>\n'
 
-        drone_bodies += f"""
+        body_xml = f"""
     <body name="{prefix}" pos="{x} {y} {z}" quat="{qw} {qx} {qy} {qz}">
       <freejoint name="{prefix}_joint"/>
       <inertial pos="0 0 0" mass="{mass}" diaginertia="{ixx} {iyy} {izz}"/>
@@ -185,15 +392,20 @@ def _generate_aviary_xml(
       <geom mesh="cf2_vis_5" material="body_frame_plastic" class="visual"/>
       <geom mesh="cf2_vis_6" material="white" class="visual"/>
       <site name="{prefix}_center" pos="0 0 0" group="5"/>
+"""
+
+        if drone_model == DroneModel.BB_HOOK:
+            body_xml += HOOK_XML
+
+        body_xml += f"""
 {prop_sites}"""
 
-        # Add camera for vision
         if vision:
-            drone_bodies += f'      <camera name="{prefix}_cam" pos="0.02 0 0" xyaxes="0 -1 0 0 0 1" fovy="60"/>\n'
+            body_xml += f'      <camera name="{prefix}_cam" pos="0.02 0 0" xyaxes="0 -1 0 0 0 1" fovy="60"/>\n'
 
-        drone_bodies += "    </body>\n"
+        body_xml += "    </body>\n"
+        drone_bodies += body_xml
 
-        # Sensors
         sensors += f"""
     <gyro name="{prefix}_gyro" site="{prefix}_center"/>
     <accelerometer name="{prefix}_acc" site="{prefix}_center"/>
@@ -202,7 +414,12 @@ def _generate_aviary_xml(
     <framelinvel name="{prefix}_vel" objtype="site" objname="{prefix}_center"/>
     <frameangvel name="{prefix}_angvel" objtype="site" objname="{prefix}_center"/>"""
 
-    # Obstacles
+    if drone_model == DroneModel.BB_HOOK:
+        sensors += f"""
+        <tendonpos name="{prefix}_tendon1_len" tendon="tendon1"/>
+        <tendonpos name="{prefix}_tendon2_len" tendon="tendon2"/>"""
+
+
     obstacle_bodies = ""
     if obstacles:
         obstacle_bodies = """
@@ -215,6 +432,9 @@ def _generate_aviary_xml(
     <body name="obstacle_cylinder" pos="0 -0.5 0.4">
       <geom type="cylinder" size="0.05 0.3" rgba="0.2 0.2 0.8 1"/>
     </body>"""
+
+    tendon_block = HOOK_TENDONS if drone_model == DroneModel.BB_HOOK else ""
+    actuator_block = HOOK_ACTUATORS if drone_model == DroneModel.BB_HOOK else ""
 
     xml = f"""<mujoco model="aviary_{num_drones}x_{drone_model.value}">
   <option integrator="RK4" density="1.225" viscosity="1.8e-5" timestep="{timestep}"/>
@@ -256,12 +476,18 @@ def _generate_aviary_xml(
 {drone_bodies}{obstacle_bodies}
   </worldbody>
 
+{tendon_block}
+{actuator_block}
+
   <sensor>
 {sensors}
   </sensor>
 </mujoco>
 """
     return xml
+
+
+
 
 
 class BaseAviary(gym.Env):
@@ -457,7 +683,10 @@ class BaseAviary(gym.Env):
         self.rpy = np.zeros((num_drones, 3))
         self.vel = np.zeros((num_drones, 3))
         self.ang_v = np.zeros((num_drones, 3))
-        self.last_clipped_action = np.zeros((num_drones, 4))
+        self.last_rpm = np.zeros((num_drones, 4))
+        
+        self.tendon_lengths=np.zeros((num_drones,2))
+            
         if self.PHYSICS == Physics.DYN:
             self.rpy_rates = np.zeros((num_drones, 3))
 
@@ -506,7 +735,10 @@ class BaseAviary(gym.Env):
         # Reset state
         self.step_counter = 0
         self.RESET_TIME = time.time()
-        self.last_clipped_action = np.zeros((self.NUM_DRONES, 4))
+        if self.DRONE_MODEL==DroneModel.BB_HOOK:
+            self.last_clipped_action = np.zeros((self.NUM_DRONES, 6))
+        else:
+            self.last_clipped_action = np.zeros((self.NUM_DRONES, 4))
         if self.PHYSICS == Physics.DYN:
             self.rpy_rates = np.zeros((self.NUM_DRONES, 3))
 
@@ -525,8 +757,13 @@ class BaseAviary(gym.Env):
             Action array, format depends on self.ACT_TYPE.
         """
         # Preprocess action to RPMs
-        clipped_action = np.reshape(self._preprocessAction(action), (self.NUM_DRONES, 4))
-
+        rpm_actions=action[:4]
+        clipped_action = np.reshape(self._preprocessAction(rpm_actions), (self.NUM_DRONES, 4))
+        if self.DRONE_MODEL==DroneModel.BB_HOOK:
+           
+            tendon_action=action[4:]
+     
+        rpm=clipped_action
         # Simulation sub-steps
         for _ in range(self.SIM_STEPS_PER_CTRL):
             # Update kinematics between sub-steps for physics effects
@@ -535,26 +772,30 @@ class BaseAviary(gym.Env):
                 Physics.MJC_DW, Physics.MJC_GND_DRAG_DW
             ):
                 self._updateAndStoreKinematicInformation()
-
             # Apply physics for each drone
+            if self.DRONE_MODEL==DroneModel.BB_HOOK:
+                act1_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "act1")
+                act2_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "act2")
+                self.data.ctrl[act1_id] = tendon_action[0]
+                self.data.ctrl[act2_id] = tendon_action[1]
             for i in range(self.NUM_DRONES):
                 if self.PHYSICS == Physics.MJC:
-                    self._physics(clipped_action[i, :], i)
+                    self._physics(rpm[i, :], i)
                 elif self.PHYSICS == Physics.DYN:
-                    self._dynamics(clipped_action[i, :], i)
+                    self._dynamics(rpm[i, :], i)
                 elif self.PHYSICS == Physics.MJC_GND:
-                    self._physics(clipped_action[i, :], i)
-                    self._groundEffect(clipped_action[i, :], i)
+                    self._physics(rpm[i, :], i)
+                    self._groundEffect(rpm[i, :], i)
                 elif self.PHYSICS == Physics.MJC_DRAG:
-                    self._physics(clipped_action[i, :], i)
-                    self._drag(self.last_clipped_action[i, :], i)
+                    self._physics(rpm[i, :], i)
+                    self._drag(self.last_rpm[i, :], i)
                 elif self.PHYSICS == Physics.MJC_DW:
-                    self._physics(clipped_action[i, :], i)
+                    self._physics(rpm[i, :], i)
                     self._downwash(i)
                 elif self.PHYSICS == Physics.MJC_GND_DRAG_DW:
-                    self._physics(clipped_action[i, :], i)
-                    self._groundEffect(clipped_action[i, :], i)
-                    self._drag(self.last_clipped_action[i, :], i)
+                    self._physics(rpm[i, :], i)
+                    self._groundEffect(rpm[i, :], i)
+                    self._drag(self.last_rpm[i, :], i)
                     self._downwash(i)
 
                 # Apply wind disturbance if configured
@@ -564,28 +805,25 @@ class BaseAviary(gym.Env):
                     wind_force = self._wind_field.get_force(
                         dt=self.SIM_TIMESTEP, position=self.pos[i], velocity=self.vel[i])
                     self.data.xfrc_applied[body_id, :3] += wind_force
-
             # Step MuJoCo (unless using explicit dynamics)
             if self.PHYSICS != Physics.DYN:
                 mujoco.mj_step(self.model, self.data)
 
-            self.last_clipped_action = clipped_action
+            self.last_rpm = rpm
 
         # Update kinematic state
         self._updateAndStoreKinematicInformation()
         self.step_counter += self.SIM_STEPS_PER_CTRL
-
         # Record frames
         if self.RECORD and self.step_counter % max(1, int(self.SIM_FREQ / 24)) == 0:
             self._saveFrame()
 
         # Compute returns
         obs = self._computeObs()
-        reward = self._computeReward()
+        reward = self._computeReward(action)
         terminated = self._computeTerminated()
         truncated = self._computeTruncated()
         info = self._computeInfo()
-
         return obs, reward, terminated, truncated, info
 
     ############################################################################
@@ -602,6 +840,7 @@ class BaseAviary(gym.Env):
         nth_drone : int
             Drone index.
         """
+
         forces = np.array(rpm ** 2) * self.KF
         torques = np.array(rpm ** 2) * self.KM
         if self.DRONE_MODEL == DroneModel.RACE:
@@ -767,14 +1006,19 @@ class BaseAviary(gym.Env):
             joint_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_JOINT, f"drone{i}_joint")
             qpos_addr = self.model.jnt_qposadr[joint_id]
             qvel_addr = self.model.jnt_dofadr[joint_id]
-
             self.pos[i] = self.data.qpos[qpos_addr:qpos_addr + 3]
             self.quat[i] = self.data.qpos[qpos_addr + 3:qpos_addr + 7]
             self.vel[i] = self.data.qvel[qvel_addr:qvel_addr + 3]
             self.ang_v[i] = self.data.qvel[qvel_addr + 3:qvel_addr + 6]
             # Quaternion to RPY
             self.rpy[i] = self._quatToRPY(self.quat[i])
-
+            if self.DRONE_MODEL == DroneModel.BB_HOOK:
+                tid1 = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_TENDON, "tendon1")
+                tid2 = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_TENDON, "tendon2")
+                self.tendon_lengths[i] = np.array([
+                    self.data.ten_length[tid1],
+                    self.data.ten_length[tid2]
+                ])
         # Clear xfrc_applied for next step
         self.data.xfrc_applied[:] = 0
 
@@ -794,10 +1038,15 @@ class BaseAviary(gym.Env):
         yaw = np.arctan2(siny_cosp, cosy_cosp)
         return np.array([roll, pitch, yaw])
 
+
+    def _getDroneTendonLengths(self,nth_drone):
+        return self.tendon_lengths[nth_drone,:]
+
+
     def _getDroneStateVector(self, nth_drone):
         """Get the 20-dim state vector for a drone.
 
-        Returns: [pos(3), quat(4), rpy(3), vel(3), ang_v(3), last_action(4)]
+        Returns: [pos(3), quat(4), rpy(3), vel(3), ang_v(3), last_action(4), tendon_lengths(2)]
         """
         return np.hstack([
             self.pos[nth_drone, :],
@@ -805,9 +1054,10 @@ class BaseAviary(gym.Env):
             self.rpy[nth_drone, :],
             self.vel[nth_drone, :],
             self.ang_v[nth_drone, :],
-            self.last_clipped_action[nth_drone, :],
-        ]).reshape(20,)
-
+            self.last_rpm[nth_drone, :],
+            self.tendon_lengths[nth_drone,:]
+        ]).reshape(22,)
+    
     def _getDroneImages(self, nth_drone):
         """Render RGB, depth, and segmentation from the nth drone's camera."""
         if self._renderer is None:
@@ -920,7 +1170,12 @@ class BaseAviary(gym.Env):
                 rpms[i, 2] = collective_rpm - roll_cmd * 0.25 * self.MAX_RPM + pitch_cmd * 0.25 * self.MAX_RPM - yaw_rate_cmd * 0.25 * self.MAX_RPM
                 rpms[i, 3] = collective_rpm + roll_cmd * 0.25 * self.MAX_RPM + pitch_cmd * 0.25 * self.MAX_RPM + yaw_rate_cmd * 0.25 * self.MAX_RPM
             return np.clip(rpms, 0, self.MAX_RPM)
+        elif self.ACT_TYPE == ActionType.HOOK:
+          
+            rpms = self._normalizedActionToRPM(np.clip(np.array(action[0:4]).reshape(self.NUM_DRONES, 4), 0, self.MAX_RPM))
+            tendon_action =np.clip(np.array(action[4:]).reshape(self.NUM_DRONES, 2), -1, 1)
 
+            return np.concatenate([rpms, tendon_action], axis=1)
         raise ValueError(f"Unknown action type: {self.ACT_TYPE}")
 
     def _normalizedActionToRPM(self, action):
@@ -954,6 +1209,13 @@ class BaseAviary(gym.Env):
         elif self.ACT_TYPE == ActionType.ATTITUDE:
             act_lower = np.tile(np.array([-1, -1, -1, -1]), self.NUM_DRONES)
             act_upper = np.tile(np.array([1, 1, 1, 1]), self.NUM_DRONES)
+        elif self.ACT_TYPE==ActionType.HOOK:
+            act_lower = np.zeros(4 * self.NUM_DRONES)
+            act_upper = np.full(4 * self.NUM_DRONES, self.MAX_RPM)
+            extra_low = np.array([-1.0, -1.0], dtype=np.float32)
+            extra_high = np.array([1.0, 1.0], dtype=np.float32)
+            act_lower = np.concatenate([act_lower, extra_low])
+            act_upper = np.concatenate([act_upper, extra_high])
         else:
             raise ValueError(f"Unknown action type: {self.ACT_TYPE}")
 
@@ -977,6 +1239,13 @@ class BaseAviary(gym.Env):
                 "kin": spaces.Box(low=-np.inf, high=np.inf, shape=(20 * self.NUM_DRONES,), dtype=np.float32),
                 "rgb": spaces.Box(low=0, high=255, shape=(self.NUM_DRONES, 48, 64, 4), dtype=np.uint8),
             })
+        elif self.OBS_TYPE == ObservationType.KIN_WITH_HOOK:
+            obs_lower_pos = np.full(20 * self.NUM_DRONES, -np.inf)
+            obs_upper_pos = np.full(20 * self.NUM_DRONES, np.inf)
+            obs_lower_tendon_lengths = np.full(2 * self.NUM_DRONES, -1)
+            obs_upper_tendon_lengths = np.full(2 * self.NUM_DRONES, 1)
+            return spaces.Box(low=np.hstack([obs_lower_pos.astype(np.float32),obs_lower_tendon_lengths.astype(np.float32)]),
+                               high=np.hstack([obs_upper_pos.astype(np.float32),obs_upper_tendon_lengths.astype(np.float32)]))
         raise ValueError(f"Unknown obs type: {self.OBS_TYPE}")
 
     ############################################################################
@@ -995,9 +1264,14 @@ class BaseAviary(gym.Env):
             kin = np.hstack([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
             imgs = np.stack([self._getDroneImages(i)[0] for i in range(self.NUM_DRONES)])
             return {"kin": kin.astype(np.float32), "rgb": imgs}
+        elif self.OBS_TYPE ==ObservationType.KIN_WITH_HOOK:
+            position = np.hstack([self._getDroneStateVector(i) for i in range(self.NUM_DRONES)])
+            tendon_lengths=np.hstack([self._getDroneTendonLengths(i) for i in range(self.NUM_DRONES)])
+            obs=np.hstack([position,tendon_lengths])
+            return obs.astype(np.float32)
         return np.array([])
 
-    def _computeReward(self):
+    def _computeReward(self,action=None):
         """Compute reward. Override in subclass."""
         return 0.0
 

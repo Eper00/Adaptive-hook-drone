@@ -68,7 +68,7 @@ class VelocityAviary(BaseAviary):
         obs = np.hstack([state[0:3], state[7:10], state[10:13], state[13:16], self.TARGET_VEL])
         return obs.astype(np.float32)
 
-    def _computeReward(self):
+    def _computeReward(self , action):
         vel_error = np.linalg.norm(self.vel[0, :3] - self.TARGET_VEL[:3])
         yaw_rate_error = abs(self.ang_v[0, 2] - self.TARGET_VEL[3])
         reward = -vel_error - 0.1 * yaw_rate_error

@@ -17,7 +17,7 @@ class FlyThroughAviary(BaseAviary):
 
     def __init__(
         self,
-        drone_model: DroneModel = DroneModel.CF2X,
+        drone_model: DroneModel = DroneModel.BB_HOOK,
         num_drones: int = 1,
         physics: Physics = Physics.MJC,
         sim_freq: int = 240,
@@ -25,7 +25,7 @@ class FlyThroughAviary(BaseAviary):
         gui: bool = False,
         record: bool = False,
         waypoints=None,
-        waypoint_radius: float = 0.15,
+        waypoint_radius: float = 0.1,
         initial_xyzs=None,
         render_mode=None,
     ):
@@ -45,7 +45,7 @@ class FlyThroughAviary(BaseAviary):
         self.current_waypoint_idx = np.zeros(num_drones if num_drones > 1 else 1, dtype=int)
 
         if initial_xyzs is None:
-            initial_xyzs = np.array([[0.0, 0.0, 0.2]])
+            initial_xyzs = np.array([[0.0, 0.0, 0.4]])
 
         super().__init__(
             drone_model=drone_model,
@@ -67,11 +67,15 @@ class FlyThroughAviary(BaseAviary):
 
     def _actionSpace(self):
         """Normalized [-1, 1] → mapped to RPM internally."""
-        return spaces.Box(low=-np.ones(4, dtype=np.float32), high=np.ones(4, dtype=np.float32))
+        return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
 
-    def _observationSpace(self):
-        # pos(3) + rpy(3) + vel(3) + angvel(3) + next_waypoint(3) + rel_waypoint(3) = 18
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(18,), dtype=np.float32)
+    def _observationSpace(self): 
+        obs_lower_pos = np.full(18, -np.inf)
+        obs_upper_pos = np.full(18 , np.inf)
+        obs_lower_tendon_lengths = np.full(2, -1)
+        obs_upper_tendon_lengths = np.full(2, 1)
+        return spaces.Box(low=np.hstack([obs_lower_pos.astype(np.float32),obs_lower_tendon_lengths.astype(np.float32)]),
+                               high=np.hstack([obs_upper_pos.astype(np.float32),obs_upper_tendon_lengths.astype(np.float32)]))
 
 
     def _preprocessAction(self, action):
@@ -88,7 +92,7 @@ class FlyThroughAviary(BaseAviary):
             wp = self.WAYPOINTS[wp_idx]
             rel_wp = wp - self.pos[i]
             obs_list.append(np.hstack([
-                state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp,
+                state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp, state[-2:]
             ]))
         return np.concatenate(obs_list).astype(np.float32)
 
@@ -100,13 +104,18 @@ class FlyThroughAviary(BaseAviary):
             height_error = abs(self.pos[i][2] - wp[2])
             xy_error = np.linalg.norm(self.pos[i][0:2]-wp[0:2])
             # Check waypoint reached
-            if height_error < self.WAYPOINT_RADIUS/10  and xy_error < self.WAYPOINT_RADIUS:
+            if height_error < self.WAYPOINT_RADIUS  and xy_error < self.WAYPOINT_RADIUS and self.current_waypoint_idx[i] < len(self.WAYPOINTS):
                 self.current_waypoint_idx[i] += 1
                 total += 10.0  # Big bonus for reaching waypoint
 
+            if wp==1 and height_error < self.WAYPOINT_RADIUS  and xy_error < self.WAYPOINT_RADIUS:
+                total -= 0.1 * (abs(self.rpy[i][0]) + abs(self.rpy[i][1]))
+                
             total -= height_error  # Approach reward
             total -= 0.1 * xy_error  # Approach reward
+            total -= 0.06 * (abs(self.rpy[i][0]) + abs(self.rpy[i][1]))  # Reward for keeping drone upright
             total -= 0.01 * np.linalg.norm(self.ang_v[i])  # Smooth flight
+
         if self._computeTerminated():
             total -= 100.0
 

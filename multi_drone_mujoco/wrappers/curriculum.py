@@ -9,7 +9,11 @@ import gymnasium as gym
 from dataclasses import dataclass, field
 from typing import Callable, Optional, Dict, Any
 from collections import deque
-
+from multi_drone_mujoco.envs.hover_aviary import HoverAviary
+from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
+from multi_drone_mujoco.envs.adaptive_hook_hover import AdaptiveHookHover
+from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
+import time
 
 @dataclass
 class CurriculumConfig:
@@ -32,14 +36,14 @@ class CurriculumConfig:
     advance_count : int
         Must exceed threshold for this many consecutive windows to advance.
     """
-    metric: str = "success_rate"
-    threshold_advance: float = 0.8
-    threshold_retreat: float = 0.2
-    window_size: int = 50
-    num_levels: int = 10
+    metric: str = "reward"
+    threshold_advance: float = 400
+    threshold_retreat: float = -1000
+    window_size: int = 20
+    num_levels: int = 50
     start_level: int = 0
     advance_count: int = 1
-
+   
 
 class CurriculumWrapper(gym.Wrapper):
     """Gymnasium wrapper that implements automatic curriculum learning.
@@ -58,6 +62,11 @@ class CurriculumWrapper(gym.Wrapper):
     ...
     >>> env = CurriculumWrapper(HoverAviary(), difficulty_fn=adjust_difficulty)
     """
+    
+
+            
+    
+
 
     def __init__(
         self,
@@ -76,6 +85,8 @@ class CurriculumWrapper(gym.Wrapper):
         self._episode_steps = 0
         self._episode_success = False
         self._advance_streak = 0
+        self._level_changed = False
+        self.level_up_times=[]
 
     @property
     def level(self) -> int:
@@ -88,7 +99,10 @@ class CurriculumWrapper(gym.Wrapper):
 
     def reset(self, **kwargs):
         # Apply difficulty for current level
-        self.difficulty_fn(self.env, self.current_level)
+        if self._level_changed:
+            print("Difficulty changed")
+        self.difficulty_fn(self.env, self.current_level,self._level_changed)
+        self._level_changed = False
 
         # Reset episode tracking
         self._episode_reward = 0.0
@@ -138,18 +152,35 @@ class CurriculumWrapper(gym.Wrapper):
         avg = np.mean(list(self._episode_metrics))
 
         if avg >= self.config.threshold_advance:
+            
             self._advance_streak += 1
             if self._advance_streak >= self.config.advance_count:
+                print("Level up")
+                self._level_changed = True
+                print(self.get_stats())
+                self.level_up_times.append({
+                    "level": self.current_level + 1,
+                    "timestamp": time.time(),
+                    "stats": self.get_stats()
+                })
                 self.current_level = min(self.current_level + 1, self.config.num_levels - 1)
                 self._advance_streak = 0
                 self._episode_metrics.clear()
         elif avg <= self.config.threshold_retreat:
+            print("Level down")
+            self._level_changed = True
+            print(self.get_stats())
+            self.level_up_times.append({
+                    "level": self.current_level - 1,
+                    "timestamp": time.time(),
+                    "stats": self.get_stats()
+            })
             self.current_level = max(self.current_level - 1, 0)
             self._advance_streak = 0
             self._episode_metrics.clear()
         else:
             self._advance_streak = 0
-
+            self._level_changed = False
     def get_stats(self) -> Dict[str, Any]:
         """Return curriculum statistics."""
         metrics = list(self._episode_metrics)
