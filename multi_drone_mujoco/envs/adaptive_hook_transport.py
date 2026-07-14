@@ -12,12 +12,12 @@ from multi_drone_mujoco.envs.base_aviary import BaseAviary
 from multi_drone_mujoco.utils.enums import DroneModel, Physics, ActionType, ObservationType
 
 
-class FlyThroughAviary(BaseAviary):
+class AdaptiveFlyThroughAviary(BaseAviary):
     """Fly through waypoints task."""
 
     def __init__(
         self,
-        drone_model: DroneModel = DroneModel.CF2X,
+        drone_model: DroneModel = DroneModel.BB_HOOK,
         num_drones: int = 1,
         physics: Physics = Physics.MJC,
         sim_freq: int = 240,
@@ -45,7 +45,7 @@ class FlyThroughAviary(BaseAviary):
         self.current_waypoint_idx = np.zeros(num_drones if num_drones > 1 else 1, dtype=int)
 
         if initial_xyzs is None:
-            initial_xyzs = np.array([[0.0, 0.0, 0.2]])
+            initial_xyzs = np.array([[0.0, 0.0, 0.4]])
 
         super().__init__(
             drone_model=drone_model,
@@ -63,33 +63,36 @@ class FlyThroughAviary(BaseAviary):
 
     def reset(self, seed=None, options=None):
         self.current_waypoint_idx[:] = 0
-        random_x=np.random.uniform(-1,1)
-        random_y=np.random.uniform(-1,1)
+        random_x=np.random.uniform(0.5,1.5)
+        random_y=np.random.uniform(-0.5,0.5)
         random_z=np.random.uniform(0.4,0.8)
         
         self.TARGET_POSTION=[random_x,random_y,random_z]
       
-        random_x=np.random.uniform(-2,2)
-        random_y=np.random.uniform(-2,2)
-        self.GOAL_POSTION =[random_x,random_y,1]
-
-
         self.WAYPOINTS = np.array([
                 [0.0, 0.0, 1.0],
                 self.TARGET_POSTION,
-                self.GOAL_POSTION,
+                [2.0, 0.0, 1.0],
                 ])
         
        
         return super().reset(seed=seed, options=options)
-
+    def step(self, action):
+        
+        action[4:] = 0
+        obs, rewards, terminateds, truncateds, infos = super().step(action)
+        return obs, rewards, terminateds, truncateds, infos
     def _actionSpace(self):
         """Normalized [-1, 1] → mapped to RPM internally."""
-        return spaces.Box(low=-np.ones(4, dtype=np.float32), high=np.ones(4, dtype=np.float32))
+        return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
 
-    def _observationSpace(self):
-        # pos(3) + rpy(3) + vel(3) + angvel(3) + next_waypoint(3) + rel_waypoint(3) = 18
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(18,), dtype=np.float32)
+    def _observationSpace(self): 
+        obs_lower_pos = np.full(18, -np.inf)
+        obs_upper_pos = np.full(18 , np.inf)
+        obs_lower_tendon_lengths = np.full(2, -1)
+        obs_upper_tendon_lengths = np.full(2, 1)
+        return spaces.Box(low=np.hstack([obs_lower_pos.astype(np.float32),obs_lower_tendon_lengths.astype(np.float32)]),
+                               high=np.hstack([obs_upper_pos.astype(np.float32),obs_upper_tendon_lengths.astype(np.float32)]))
 
 
     def _preprocessAction(self, action):
@@ -106,10 +109,10 @@ class FlyThroughAviary(BaseAviary):
             wp = self.WAYPOINTS[wp_idx]
             rel_wp = wp - self.pos[i]
             obs_list.append(np.hstack([
-                state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp,
+                state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp, state[-2:]
             ]))
         return np.concatenate(obs_list).astype(np.float32)
-
+    
     def _computeReward(self , action):
         total = 0.0
         for i in range(self.NUM_DRONES):
@@ -133,6 +136,8 @@ class FlyThroughAviary(BaseAviary):
             total -= 0.01 * np.linalg.norm(self.ang_v[i])  # Smooth flight
         if self._computeTerminated():
             total -= 100.0
+
+
 
         return float(total)
 

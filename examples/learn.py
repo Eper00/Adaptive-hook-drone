@@ -12,6 +12,7 @@ from multi_drone_mujoco.envs.hover_aviary import HoverAviary
 from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
 from multi_drone_mujoco.envs.adaptive_hook_hover import AdaptiveHookHover
 from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
+from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
 from multi_drone_mujoco.wrappers.curriculum import CurriculumWrapper
 import numpy as np
 def adjust_difficulty(env, level,level_changed=True):
@@ -61,6 +62,9 @@ def train_single(
         learning_rate = 3e-4
     elif args.env_type == "velocity_aviary":
         env_class = VelocityAviary
+        learning_rate = 3e-4
+    elif args.env_type == "adaptive_fly_through":
+        env_class = AdaptiveFlyThroughAviary
         learning_rate = 3e-4
     else:
         env_class = HoverAviary

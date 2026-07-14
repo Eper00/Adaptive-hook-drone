@@ -1,8 +1,8 @@
 """Hover Aviary: single-drone hover task for RL training.
 
-Task: hover at z=1.0 and remain stable.
+Task: hover at z=(0.8 ,2) and remain stable.
 Observation: 12-dim [pos(3), rpy(3), vel(3), ang_vel(3)]  (normalized)
-Action: 4-dim normalized RPMs [-1, 1]
+Action: 4-dim normalized RPMs [-1, 1] 
 """
 import numpy as np
 from gymnasium import spaces

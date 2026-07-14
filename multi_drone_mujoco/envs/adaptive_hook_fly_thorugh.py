@@ -12,7 +12,7 @@ from multi_drone_mujoco.envs.base_aviary import BaseAviary
 from multi_drone_mujoco.utils.enums import DroneModel, Physics, ActionType, ObservationType
 
 
-class FlyThroughAviary(BaseAviary):
+class AdaptiveFlyThroughAviary(BaseAviary):
     """Fly through waypoints task."""
 
     def __init__(
@@ -25,7 +25,7 @@ class FlyThroughAviary(BaseAviary):
         gui: bool = False,
         record: bool = False,
         waypoints=None,
-        waypoint_radius: float = 0.1,
+        waypoint_radius: float = 0.12,
         initial_xyzs=None,
         render_mode=None,
     ):
@@ -63,8 +63,31 @@ class FlyThroughAviary(BaseAviary):
 
     def reset(self, seed=None, options=None):
         self.current_waypoint_idx[:] = 0
-        return super().reset(seed=seed, options=options)
+        random_x=np.random.uniform(-1,1)
+        random_y=np.random.uniform(-1,1)
+        random_z=np.random.uniform(0.4,0.8)
+        
+        self.TARGET_POSTION=[random_x,random_y,random_z]
+      
+        random_x=np.random.uniform(-2,2)
+        random_y=np.random.uniform(-2,2)
+        self.GOAL_POSTION =[random_x,random_y,1]
 
+
+        self.WAYPOINTS = np.array([
+                [0.0, 0.0, 1.0],
+                self.TARGET_POSTION,
+                self.GOAL_POSTION,
+                ])
+        
+        
+       
+        return super().reset(seed=seed, options=options)
+    def step(self, action):
+        
+        action[4:] = 0
+        obs, rewards, terminateds, truncateds, infos = super().step(action)
+        return obs, rewards, terminateds, truncateds, infos
     def _actionSpace(self):
         """Normalized [-1, 1] → mapped to RPM internally."""
         return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
@@ -95,27 +118,28 @@ class FlyThroughAviary(BaseAviary):
                 state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp, state[-2:]
             ]))
         return np.concatenate(obs_list).astype(np.float32)
-
+    
     def _computeReward(self , action):
         total = 0.0
         for i in range(self.NUM_DRONES):
+            
             wp_idx = min(self.current_waypoint_idx[i], len(self.WAYPOINTS) - 1)
             wp = self.WAYPOINTS[wp_idx]
             height_error = abs(self.pos[i][2] - wp[2])
             xy_error = np.linalg.norm(self.pos[i][0:2]-wp[0:2])
             # Check waypoint reached
-            if height_error < self.WAYPOINT_RADIUS  and xy_error < self.WAYPOINT_RADIUS and self.current_waypoint_idx[i] < len(self.WAYPOINTS):
+            if height_error < self.WAYPOINT_RADIUS/10  and xy_error < self.WAYPOINT_RADIUS:
+                if wp_idx==1:
+                    total += 50.0
+                else:
+                    total += 5.0  # Big bonus for reaching waypoint
                 self.current_waypoint_idx[i] += 1
-                total += 10.0  # Big bonus for reaching waypoint
-
-            if wp==1 and height_error < self.WAYPOINT_RADIUS  and xy_error < self.WAYPOINT_RADIUS:
-                total -= 0.1 * (abs(self.rpy[i][0]) + abs(self.rpy[i][1]))
                 
+           
+
             total -= height_error  # Approach reward
             total -= 0.1 * xy_error  # Approach reward
-            total -= 0.06 * (abs(self.rpy[i][0]) + abs(self.rpy[i][1]))  # Reward for keeping drone upright
             total -= 0.01 * np.linalg.norm(self.ang_v[i])  # Smooth flight
-
         if self._computeTerminated():
             total -= 100.0
 

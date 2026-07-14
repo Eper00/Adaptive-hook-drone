@@ -21,7 +21,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     from multi_drone_mujoco.envs.multi_hover_aviary import MultiHoverAviary
     from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
     from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
-
+    from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
     print(f"Loading model from: {model_path}")
     model = PPO.load(model_path)
 
@@ -35,7 +35,8 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         env = FlyThroughAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
     elif env_type == "velocity_aviary":
         env = VelocityAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
-
+    elif env_type == "adaptive_fly_through":
+        env = AdaptiveFlyThroughAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
 
 
     for ep in range(episodes):
@@ -48,9 +49,23 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         
         while True:
             action, _ = model.predict(obs, deterministic=True)
-            print((env.TARGET_HEIGHT,env.pos[0][2]))
+            if env_type == "adaptive_hook_hover":
+               print((env.TARGET_HEIGHT,env.pos[0][2]))
+               time.sleep(0.01)
+            elif env_type == "fly_through":
+                if np.linalg.norm(env.TARGET_POSTION-env.pos[0])<0.1:
+                    print("ok: TARGET")
+                if np.linalg.norm(env.GOAL_POSTION-env.pos[0])<0.1:
+                    print("ok: GOAL")
+                time.sleep(0.01)
+            elif env_type == "adaptive_fly_through":
+                if np.linalg.norm(env.TARGET_POSTION-env.pos[0])<0.1:
+                    print("ok: TARGET")
+                if np.linalg.norm(env.GOAL_POSTION-env.pos[0])<0.1:
+                    print("ok: GOAL")
+                time.sleep(0.01)
             env.render()
-            time.sleep(0.01)
+            
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             steps += 1
