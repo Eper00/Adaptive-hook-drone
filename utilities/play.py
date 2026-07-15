@@ -22,6 +22,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
     from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
     from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
+    from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
     print(f"Loading model from: {model_path}")
     model = PPO.load(model_path)
 
@@ -37,6 +38,8 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         env = VelocityAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
     elif env_type == "adaptive_fly_through":
         env = AdaptiveFlyThroughAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+    elif env_type == "adaptive_transport":
+        env = AdaptiveTransportAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
 
 
     for ep in range(episodes):
@@ -64,6 +67,13 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                 if np.linalg.norm(env.GOAL_POSTION-env.pos[0])<0.1:
                     print("ok: GOAL")
                 time.sleep(0.01)
+            elif env_type == "adaptive_transport":
+                if np.linalg.norm(env.TARGET_POSTION-env.pos[0])<0.1:
+                    pass#print("ok: TARGET")
+                if np.linalg.norm(env.GOAL_POSTION-env.pos[0])<0.1:
+                    pass#print("ok: GOAL")
+                time.sleep(0.01)
+            
             env.render()
             
             obs, reward, terminated, truncated, info = env.step(action)

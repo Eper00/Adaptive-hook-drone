@@ -6,13 +6,14 @@ Task: fly through a sequence of waypoints as quickly as possible.
 from turtle import pos
 
 import numpy as np
+import mujoco
 from gymnasium import spaces
 
 from multi_drone_mujoco.envs.base_aviary import BaseAviary
 from multi_drone_mujoco.utils.enums import DroneModel, Physics, ActionType, ObservationType
 
 
-class AdaptiveFlyThroughAviary(BaseAviary):
+class AdaptiveTransportAviary(BaseAviary):
     """Fly through waypoints task."""
 
     def __init__(
@@ -32,11 +33,14 @@ class AdaptiveFlyThroughAviary(BaseAviary):
         self.EPISODE_LEN_SEC = 10
         self.WAYPOINT_RADIUS = waypoint_radius
         self.TARGET_POSTION = [1.0, 0.0, 0.6]
+        self.GOAL_POSTION = [2.0, 0.0, 1.0]
+        self.RADIUS=0.05
+        self.MASS=0.2
         if waypoints is None:
             self.WAYPOINTS = np.array([
                 [0.0, 0.0, 1.0],
                 self.TARGET_POSTION,
-                [2.0, 0.0, 1.0],
+                self.GOAL_POSTION,
                 
             ])
         else:
@@ -59,24 +63,86 @@ class AdaptiveFlyThroughAviary(BaseAviary):
             act_type=ActionType.RPM,
             initial_xyzs=initial_xyzs,
             render_mode=render_mode,
+            transport_target=True
         )
-
     def reset(self, seed=None, options=None):
+        super().reset(seed=seed, options=options)
         self.current_waypoint_idx[:] = 0
-        random_x=np.random.uniform(0.5,1.5)
-        random_y=np.random.uniform(-0.5,0.5)
+        random_x=np.random.uniform(-1,1)
+        random_y=np.random.uniform(-1,1)
         random_z=np.random.uniform(0.4,0.8)
         
         self.TARGET_POSTION=[random_x,random_y,random_z]
       
+        random_x=np.random.uniform(-2,2)
+        random_y=np.random.uniform(-2,2)
+        self.GOAL_POSTION =[random_x,random_y,1]
+
+
         self.WAYPOINTS = np.array([
                 [0.0, 0.0, 1.0],
                 self.TARGET_POSTION,
-                [2.0, 0.0, 1.0],
+                self.GOAL_POSTION,
                 ])
         
-       
-        return super().reset(seed=seed, options=options)
+        
+        self.model.site_pos[self.goal_id] = self.GOAL_POSTION
+        self.data.qpos[
+            self.target_qpos_adr:self.target_qpos_adr+3
+        ] = [self.TARGET_POSTION[0],self.TARGET_POSTION[1],self.TARGET_POSTION[2]-0.2]
+
+        
+        random_mass=np.random.uniform(0.1,0.5)
+        random_radius=np.random.uniform(0.01,0.04)
+        self.model.geom_size[self.target_geom_id] = [
+            random_radius,
+            0.05,
+            0
+        ]
+        self.model.body_pos[self.holder_body_id][2] = -(self.TARGET_POSTION[2]-0.25)
+
+        # szürke tartó tömege
+        self.model.body_mass[self.holder_body_id] = random_mass
+# piros henger alsó széle
+        red_bottom = -random_radius
+
+        # holder felső széle
+        holder_top = -(self.TARGET_POSTION[2]-0.25) + 0.005
+
+
+        # távolság a két henger között
+        connector_length = abs(red_bottom - holder_top)
+
+
+        # MuJoCo box size harmadik értéke félmagasság
+        connector_half_height = connector_length / 2
+
+
+        # connector középpontja
+        connector_z = (red_bottom + holder_top) / 2
+
+
+        # bal és jobb tartó pozíció
+        self.model.body_pos[self.left_connector_id][2] = connector_z
+        self.model.body_pos[self.right_connector_id][2] = connector_z
+
+
+        # bal és jobb tartó méret
+        self.model.geom_size[self.left_connector_geom_id] = [
+            0.005,
+            0.015,
+            connector_half_height
+        ]
+
+        self.model.geom_size[self.right_connector_geom_id] = [
+            0.005,
+            0.015,
+            connector_half_height
+        ]
+        mujoco.mj_forward(self.model, self.data)
+        
+        return self._computeObs(), self._computeInfo()
+
     def step(self, action):
         
         action[4:] = 0

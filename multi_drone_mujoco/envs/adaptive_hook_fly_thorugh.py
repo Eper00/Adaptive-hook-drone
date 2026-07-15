@@ -32,11 +32,12 @@ class AdaptiveFlyThroughAviary(BaseAviary):
         self.EPISODE_LEN_SEC = 10
         self.WAYPOINT_RADIUS = waypoint_radius
         self.TARGET_POSTION = [1.0, 0.0, 0.6]
+        self.GOAL_POSTION = [2.0, 0.0, 1.0]
         if waypoints is None:
             self.WAYPOINTS = np.array([
                 [0.0, 0.0, 1.0],
                 self.TARGET_POSTION,
-                [2.0, 0.0, 1.0],
+                self.GOAL_POSTION,
                 
             ])
         else:
@@ -81,7 +82,8 @@ class AdaptiveFlyThroughAviary(BaseAviary):
                 ])
         
         
-       
+        self.model.body_pos[self.target_id] = self.TARGET_POSTION
+        self.model.site_pos[self.goal_id] = self.GOAL_POSTION
         return super().reset(seed=seed, options=options)
     def step(self, action):
         

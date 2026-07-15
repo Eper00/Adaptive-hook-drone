@@ -125,6 +125,7 @@ def _generate_aviary_xml(
     obstacles: bool = False,
     vision: bool = False,
     timestep: float = 1 / 240,
+    transport_target: bool =False,
 ) -> str:
     """Generate MuJoCo XML for the aviary with N drones."""
     meshdir = str(CF2_MESH_DIR)
@@ -267,7 +268,6 @@ def _generate_aviary_xml(
         </body>
       </body>
 """
-
     HOOK_TENDONS = """
 <tendon>
     <spatial name="tendon1" width="0.0007" frictionloss="0.1"
@@ -420,6 +420,63 @@ def _generate_aviary_xml(
         <tendonpos name="{prefix}_tendon2_len" tendon="tendon2"/>"""
 
 
+    transport_target_bodies=""
+    if transport_target:
+        transport_target_bodies="""
+        <body name="target" pos="0 0.2 0.2">
+            <freejoint name="target_joint"/>
+
+            <body name="target_geom_body" pos="0 0 0">
+                <inertial pos="0 0 0" mass="0.001" diaginertia="0.001 0.001 0.001"/>
+                <geom name="target_geom"
+                    type="cylinder"
+                    size="0.05 0.05"
+                    euler="0 90 0"
+                    rgba="1 0 0 1"
+                    contype="1"
+                    conaffinity="1"/>
+            </body>
+
+
+            <body name="left_connector" pos="-0.05 0 -0.10">
+                <geom name="left_connector_geom"
+                    type="box"
+                    size="0.005 0.015 0.10"
+                    rgba="0.8 0.8 0.8 1"/>
+            </body>
+
+
+            <body name="right_connector" pos="0.05 0 -0.10">
+                <geom name="right_connector_geom"
+                    type="box"
+                    size="0.005 0.015 0.10"
+                    rgba="0.8 0.8 0.8 1"/>
+            </body>
+
+
+            <body name="target_holder" pos="0 0 -0.20">
+                <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001"/>
+                <geom name="holder_plate"
+                    type="cylinder"
+                    size="0.06 0.005"
+                    rgba="0.4 0.4 0.4 1"
+                    contype="1"
+                    conaffinity="1"/>
+            </body>
+
+        </body>
+
+
+
+
+
+        <site name="goal"
+            pos="2.0 0.0 1.0"
+            size="0.05"
+            rgba="0 1 0 0.5"
+            group="0"/>"""
+
+
     obstacle_bodies = ""
     if obstacles:
         obstacle_bodies = """
@@ -437,8 +494,8 @@ def _generate_aviary_xml(
     actuator_block = HOOK_ACTUATORS if drone_model == DroneModel.BB_HOOK else ""
 
     xml = f"""<mujoco model="aviary_{num_drones}x_{drone_model.value}">
-  <option integrator="RK4" density="1.225" viscosity="1.8e-5" timestep="{timestep}"/>
-  <compiler inertiafromgeom="false" autolimits="true"/>
+  <option integrator="RK4" density="1.225" viscosity="1.8e-5" timestep="{timestep}" gravity="0 0 -9.81"/>
+  <compiler inertiafromgeom="false" autolimits="true" angle="degree"/>
 
   <default>
     <default class="cf2">
@@ -473,7 +530,7 @@ def _generate_aviary_xml(
   <worldbody>
     <light pos="0 0 3" dir="0 0 -1" directional="true" castshadow="false"/>
     <geom name="floor" size="10 10 0.05" type="plane" material="groundplane" contype="1" conaffinity="1"/>
-{drone_bodies}{obstacle_bodies}
+{drone_bodies}{obstacle_bodies}{transport_target_bodies}
   </worldbody>
 
 {tendon_block}
@@ -525,6 +582,7 @@ class BaseAviary(gym.Env):
         act_type: ActionType = ActionType.RPM,
         output_folder: str = "results",
         render_mode: Optional[str] = None,
+        transport_target: bool =False,
     ):
         """Initialize the aviary.
 
@@ -651,10 +709,27 @@ class BaseAviary(gym.Env):
             obstacles=obstacles,
             vision=vision_attributes,
             timestep=self.SIM_TIMESTEP,
+            transport_target =transport_target,
         )
+        self.xml=xml_str
         self.model = mujoco.MjModel.from_xml_string(xml_str)
         self.data = mujoco.MjData(self.model)
 
+
+        if transport_target:
+            self.target_joint_id = self.model.joint("target_joint").id
+            self.target_qpos_adr = self.model.jnt_qposadr[self.target_joint_id]
+
+            self.target_geom_id = self.model.geom("target_geom").id
+
+            self.holder_body_id = self.model.body("target_holder").id
+
+            self.goal_id = self.model.site("goal").id
+            self.left_connector_id = self.model.body("left_connector").id
+            self.right_connector_id = self.model.body("right_connector").id
+            self.left_connector_geom_id=self.model.geom("left_connector_geom").id
+            self.right_connector_geom_id=self.model.geom("right_connector_geom").id
+                    
         # Vision attributes
         if self.VISION_ATTR:
             self.IMG_RES = np.array([64, 48])

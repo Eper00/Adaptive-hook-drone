@@ -13,17 +13,11 @@ from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
 from multi_drone_mujoco.envs.adaptive_hook_hover import AdaptiveHookHover
 from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
 from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
+from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
 from multi_drone_mujoco.wrappers.curriculum import CurriculumWrapper
 import numpy as np
 def adjust_difficulty(env, level,level_changed=True):
-    if isinstance(env, FlyThroughAviary):
-        env.TARGET_HEIGHT = [
-            np.random.uniform(0.5, 1.5),
-            0,
-            np.random.uniform(0.1, 0.8)
-        ]
-
-    elif isinstance(env, AdaptiveHookHover):
+    if isinstance(env, AdaptiveHookHover):
         if level_changed:
            
             env.random_acion_amplitude = min(env.random_acion_amplitude + 0.05, 1)
@@ -31,7 +25,6 @@ def train_single(
     total_timesteps: int = 100_000,
     output_dir: str = "results/rl_hover",
     curriculum_flag: bool = False,
-    warm_start_model_path: str = None
 ):
     """Train single-drone hover with PPO + optional curriculum learning."""
     try:
@@ -65,6 +58,9 @@ def train_single(
         learning_rate = 3e-4
     elif args.env_type == "adaptive_fly_through":
         env_class = AdaptiveFlyThroughAviary
+        learning_rate = 3e-4
+    elif args.env_type == "adaptive_transport":
+        env_class = AdaptiveTransportAviary
         learning_rate = 3e-4
     else:
         env_class = HoverAviary
@@ -149,86 +145,19 @@ def train_single(
 
 
 
-def train_multi(total_timesteps: int = 200_000, output_dir: str = "results/rl_multi_hover"):
-    """Train multi-drone hover with PPO (centralized)."""
-    try:
-        from stable_baselines3 import PPO
-        from stable_baselines3.common.env_util import make_vec_env
-        from stable_baselines3.common.callbacks import EvalCallback
-    except ImportError:
-        print("[ERROR] stable-baselines3 not installed. Run: pip install stable-baselines3")
-        return
-
-    from multi_drone_mujoco.envs.multi_hover_aviary import MultiHoverAviary
-
-    os.makedirs(output_dir, exist_ok=True)
-
-    print("=" * 60)
-    print("Training Multi-Drone Hover (PPO, 2 drones)")
-    print(f"  Timesteps: {total_timesteps}")
-    print("=" * 60)
-
-    env = make_vec_env(
-        lambda: MultiHoverAviary(
-            num_drones=2,
-            ctrl_freq=48,
-            sim_freq=240,
-            target_heights=[1.2, 0.7],
-        ),
-        n_envs=4,
-    )
-
-    eval_env = MultiHoverAviary(
-        num_drones=2,
-        ctrl_freq=48,
-        sim_freq=240,
-        target_heights=[1.2, 0.7],
-    )
-
-    eval_callback = EvalCallback(
-        eval_env,
-        best_model_save_path=output_dir,
-        log_path=output_dir,
-        eval_freq=5000,
-        deterministic=True,
-    )
-
-    model = PPO(
-        "MlpPolicy",
-        env,
-        verbose=1,
-        tensorboard_log=os.path.join(output_dir, "tb"),
-        learning_rate=3e-4,
-        n_steps=2048,
-        batch_size=64,
-        n_epochs=10,
-        gamma=0.99,
-        gae_lambda=0.95,
-        clip_range=0.2,
-        ent_coef=0.01,
-    )
-
-    model.learn(total_timesteps=total_timesteps, callback=eval_callback)
-    model.save(os.path.join(output_dir, "final_model"))
-    print(f"\n[DONE] Model saved to {output_dir}/final_model.zip")
-
-    env.close()
-    eval_env.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--multiagent", type=str, default="false")
+   
     parser.add_argument("--timesteps", type=int, default=100_000)
     parser.add_argument("--env_type", type=str, default="hover")
     parser.add_argument("--curriculum_flag",type=str, default="false")
     args = parser.parse_args()
 
-    if args.multiagent.lower() == "true":
-        train_multi(total_timesteps=args.timesteps)
-    else:
-        train_single(
-            total_timesteps=args.timesteps,
-            output_dir=f"results/rl_{args.env_type}",
-            curriculum_flag=args.curriculum_flag.lower() == "true",
+   
+    train_single(
+        total_timesteps=args.timesteps,
+        output_dir=f"results/rl_{args.env_type}",
+        curriculum_flag=args.curriculum_flag.lower() == "true",
         )

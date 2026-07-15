@@ -80,7 +80,6 @@ class FlyThroughAviary(BaseAviary):
                 self.GOAL_POSTION,
                 ])
         
-       
         return super().reset(seed=seed, options=options)
 
     def _actionSpace(self):
