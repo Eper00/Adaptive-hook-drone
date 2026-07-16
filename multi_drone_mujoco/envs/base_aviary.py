@@ -427,7 +427,7 @@ def _generate_aviary_xml(
             <freejoint name="target_joint"/>
 
             <body name="target_geom_body" pos="0 0 0">
-                <inertial pos="0 0 0" mass="0.001" diaginertia="0.001 0.001 0.001"/>
+                <inertial pos="0 0 0" mass="0.01" diaginertia="0.001 0.001 0.001"/>
                 <geom name="target_geom"
                     type="cylinder"
                     size="0.05 0.05"
@@ -715,7 +715,9 @@ class BaseAviary(gym.Env):
         self.model = mujoco.MjModel.from_xml_string(xml_str)
         self.data = mujoco.MjData(self.model)
 
-
+        if self.DRONE_MODEL ==DroneModel.BB_HOOK:
+            self.link_2=self.model.joint("link_2").id
+            self.link_2_qpos_adr = self.model.jnt_qposadr[self.link_2]
         if transport_target:
             self.target_joint_id = self.model.joint("target_joint").id
             self.target_qpos_adr = self.model.jnt_qposadr[self.target_joint_id]

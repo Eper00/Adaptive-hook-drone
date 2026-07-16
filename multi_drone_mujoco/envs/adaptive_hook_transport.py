@@ -92,19 +92,20 @@ class AdaptiveTransportAviary(BaseAviary):
         ] = [self.TARGET_POSTION[0],self.TARGET_POSTION[1],self.TARGET_POSTION[2]-0.2]
 
         
-        random_mass=np.random.uniform(0.1,0.5)
-        random_radius=np.random.uniform(0.01,0.04)
+        self.MASS=np.random.uniform(0.1,0.5)
+        self.RADIUS=np.random.uniform(0.01,0.03)
         self.model.geom_size[self.target_geom_id] = [
-            random_radius,
+            self.RADIUS,
             0.05,
             0
         ]
         self.model.body_pos[self.holder_body_id][2] = -(self.TARGET_POSTION[2]-0.25)
 
+
+       
         # szürke tartó tömege
-        self.model.body_mass[self.holder_body_id] = random_mass
-# piros henger alsó széle
-        red_bottom = -random_radius
+        self.model.body_mass[self.holder_body_id] = self.MASS
+        red_bottom = -self.RADIUS
 
         # holder felső széle
         holder_top = -(self.TARGET_POSTION[2]-0.25) + 0.005
@@ -144,8 +145,10 @@ class AdaptiveTransportAviary(BaseAviary):
         return self._computeObs(), self._computeInfo()
 
     def step(self, action):
-        
-        action[4:] = 0
+
+        if self.current_waypoint_idx[0] <len(self.WAYPOINTS) - 1:
+            action = action.copy()
+            action[4:] = 0
         obs, rewards, terminateds, truncateds, infos = super().step(action)
         return obs, rewards, terminateds, truncateds, infos
     def _actionSpace(self):
@@ -153,8 +156,8 @@ class AdaptiveTransportAviary(BaseAviary):
         return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
 
     def _observationSpace(self): 
-        obs_lower_pos = np.full(18, -np.inf)
-        obs_upper_pos = np.full(18 , np.inf)
+        obs_lower_pos = np.full(24, -np.inf)
+        obs_upper_pos = np.full(24 , np.inf)
         obs_lower_tendon_lengths = np.full(2, -1)
         obs_upper_tendon_lengths = np.full(2, 1)
         return spaces.Box(low=np.hstack([obs_lower_pos.astype(np.float32),obs_lower_tendon_lengths.astype(np.float32)]),
@@ -169,13 +172,17 @@ class AdaptiveTransportAviary(BaseAviary):
 
     def _computeObs(self):
         obs_list = []
+
         for i in range(self.NUM_DRONES):
+            pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
+            link_2_position=self.data.qpos[self.link_2_qpos_adr:self.link_2_qpos_adr+3]+self.pos[0]
             state = self._getDroneStateVector(i)
             wp_idx = min(self.current_waypoint_idx[i], len(self.WAYPOINTS) - 1)
             wp = self.WAYPOINTS[wp_idx]
             rel_wp = wp - self.pos[i]
+            rel_gb = pay_load_grab_position - link_2_position
             obs_list.append(np.hstack([
-                state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp, state[-2:]
+                state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp, pay_load_grab_position,rel_gb, state[-2:]
             ]))
         return np.concatenate(obs_list).astype(np.float32)
     
@@ -187,16 +194,26 @@ class AdaptiveTransportAviary(BaseAviary):
             wp = self.WAYPOINTS[wp_idx]
             height_error = abs(self.pos[i][2] - wp[2])
             xy_error = np.linalg.norm(self.pos[i][0:2]-wp[0:2])
+            pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
+            link_2_position=self.data.qpos[self.link_2_qpos_adr:self.link_2_qpos_adr+3]+self.pos[i]
+            payload_error=np.linalg.norm(pay_load_grab_position-link_2_position)
+            
             # Check waypoint reached
             if height_error < self.WAYPOINT_RADIUS/10  and xy_error < self.WAYPOINT_RADIUS:
-                if wp_idx==1:
+                # Large reward for successful payload pickup waypoint
+                if self.current_waypoint_idx[i]==1:
                     total += 50.0
                 else:
                     total += 5.0  # Big bonus for reaching waypoint
                 self.current_waypoint_idx[i] += 1
                 
-           
 
+            if self.current_waypoint_idx[i] ==len(self.WAYPOINTS) - 1:
+                print(payload_error)
+                total-=0.1*payload_error
+                if payload_error<self.RADIUS+0.1:
+                    total+=1
+                
             total -= height_error  # Approach reward
             total -= 0.1 * xy_error  # Approach reward
             total -= 0.01 * np.linalg.norm(self.ang_v[i])  # Smooth flight
