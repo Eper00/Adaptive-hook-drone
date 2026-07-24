@@ -14,7 +14,8 @@ from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
 from multi_drone_mujoco.envs.adaptive_hook_hover import AdaptiveHookHover
 from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
 import time
-
+from stable_baselines3.common.callbacks import BaseCallback
+import numpy as np
 @dataclass
 class CurriculumConfig:
     """Configuration for curriculum learning.
@@ -36,6 +37,7 @@ class CurriculumConfig:
     advance_count : int
         Must exceed threshold for this many consecutive windows to advance.
     """
+    """Adaptive hover:
     metric: str = "reward"
     threshold_advance: float = 400
     threshold_retreat: float = -1000
@@ -43,7 +45,16 @@ class CurriculumConfig:
     num_levels: int = 50
     start_level: int = 0
     advance_count: int = 1
-   
+    """
+    """Adaptive transport:"""
+    metric: str = "reward"
+    threshold_advance: float = 1400
+    threshold_retreat: float = -100
+    window_size: int = 20
+    num_levels: int = 2
+    start_level: int = 0
+    advance_count: int = 1
+    
 
 class CurriculumWrapper(gym.Wrapper):
     """Gymnasium wrapper that implements automatic curriculum learning.
@@ -86,7 +97,8 @@ class CurriculumWrapper(gym.Wrapper):
         self._episode_success = False
         self._advance_streak = 0
         self._level_changed = False
-        self.level_up_times=[]
+
+       
 
     @property
     def level(self) -> int:
@@ -98,9 +110,7 @@ class CurriculumWrapper(gym.Wrapper):
         return self.current_level / max(self.config.num_levels - 1, 1)
 
     def reset(self, **kwargs):
-        # Apply difficulty for current level
-        if self._level_changed:
-            print("Difficulty changed")
+       
         self.difficulty_fn(self.env, self.current_level,self._level_changed)
         self._level_changed = False
 
@@ -118,7 +128,7 @@ class CurriculumWrapper(gym.Wrapper):
         obs, reward, terminated, truncated, info = self.env.step(action)
         self._episode_reward += reward
         self._episode_steps += 1
-
+       
         # Check for success flag in info
         if info.get("success", False) or info.get("is_success", False):
             self._episode_success = True
@@ -146,38 +156,60 @@ class CurriculumWrapper(gym.Wrapper):
 
     def _maybe_adjust_level(self):
         """Check if we should advance or retreat."""
+
         if len(self._episode_metrics) < self.config.window_size:
             return
 
         avg = np.mean(list(self._episode_metrics))
 
+
         if avg >= self.config.threshold_advance:
-            
+
             self._advance_streak += 1
+
             if self._advance_streak >= self.config.advance_count:
-                print("Level up")
-                self._level_changed = True
-                print(self.get_stats())
-                self.level_up_times.append({
-                    "level": self.current_level + 1,
-                    "timestamp": time.time(),
-                    "stats": self.get_stats()
-                })
-                self.current_level = min(self.current_level + 1, self.config.num_levels - 1)
+
+                old_level = self.current_level
+
+                self.current_level = min(
+                    self.current_level + 1,
+                    self.config.num_levels - 1
+                )
+
+                if self.current_level != old_level:
+
+                    
+                   
+                    self._level_changed = True
+
+                   
+
                 self._advance_streak = 0
                 self._episode_metrics.clear()
+
+
         elif avg <= self.config.threshold_retreat:
-            print("Level down")
-            self._level_changed = True
-            print(self.get_stats())
-            self.level_up_times.append({
-                    "level": self.current_level - 1,
-                    "timestamp": time.time(),
-                    "stats": self.get_stats()
-            })
-            self.current_level = max(self.current_level - 1, 0)
+
+            old_level = self.current_level
+
+            self.current_level = max(
+                self.current_level - 1,
+                0
+            )
+
+            if self.current_level != old_level:
+
+            
+               
+
+                self._level_changed = True
+
+               
+
             self._advance_streak = 0
             self._episode_metrics.clear()
+
+
         else:
             self._advance_streak = 0
             self._level_changed = False
@@ -191,3 +223,64 @@ class CurriculumWrapper(gym.Wrapper):
             "metric_std": np.std(metrics) if metrics else 0.0,
             "episodes_tracked": len(metrics),
         }
+    def set_level(self, level):
+        """Force curriculum level."""
+        self.current_level = level
+        self._level_changed = True
+       
+
+    def get_level(self):
+        return self.current_level
+    def get_level_up_times(self):
+        return self.level_up_times
+
+
+class CurriculumCallback(BaseCallback):
+
+    def __init__(self, eval_env, verbose=0):
+        super().__init__(verbose)
+        self.eval_env = eval_env
+        self.last_level = -1
+
+
+    def _on_step(self):
+
+        # Lekérjük a training env-ek aktuális szintjeit
+        levels = self.training_env.env_method("get_level")
+        # 8 párhuzamos env esetén átlagolunk
+        current_level = max(levels)
+
+        # TensorBoard log
+        self.logger.record(
+            "curriculum/level",
+            current_level
+        )
+
+
+        if current_level==0 and current_level != self.last_level :
+            print(f"[CURRICULUM] Level started at: "
+            f"{current_level}")
+            
+                        # Eval env szinkronizálása
+            self.eval_env.env_method(
+                            "set_level",
+                            current_level
+                        )
+            
+            self.last_level = current_level
+        if current_level != self.last_level:
+
+            print(
+                f"[CURRICULUM] Level changed: "
+                f"{self.last_level} -> {current_level}"
+            )
+
+            # Eval env szinkronizálása
+            self.eval_env.env_method(
+                "set_level",
+                current_level
+            )
+
+            self.last_level = current_level
+
+        return True

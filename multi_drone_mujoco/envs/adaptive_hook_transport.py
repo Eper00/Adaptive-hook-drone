@@ -36,6 +36,8 @@ class AdaptiveTransportAviary(BaseAviary):
         self.GOAL_POSTION = [2.0, 0.0, 1.0]
         self.RADIUS=0.05
         self.MASS=0.2
+        self.GRAB_FLAG=False
+        self.GRAB_FLAG_ENABLE=False
         if waypoints is None:
             self.WAYPOINTS = np.array([
                 [0.0, 0.0, 1.0],
@@ -78,7 +80,6 @@ class AdaptiveTransportAviary(BaseAviary):
         random_y=np.random.uniform(-2,2)
         self.GOAL_POSTION =[random_x,random_y,1]
 
-
         self.WAYPOINTS = np.array([
                 [0.0, 0.0, 1.0],
                 self.TARGET_POSTION,
@@ -92,11 +93,11 @@ class AdaptiveTransportAviary(BaseAviary):
         ] = [self.TARGET_POSTION[0],self.TARGET_POSTION[1],self.TARGET_POSTION[2]-0.2]
 
         
-        self.MASS=np.random.uniform(0.1,0.5)
-        self.RADIUS=np.random.uniform(0.01,0.03)
+        self.MASS=np.random.uniform(0.1,0.1)
+        self.RADIUS=np.random.uniform(0.01,0.02)
         self.model.geom_size[self.target_geom_id] = [
             self.RADIUS,
-            0.05,
+            0.15,
             0
         ]
         self.model.body_pos[self.holder_body_id][2] = -(self.TARGET_POSTION[2]-0.25)
@@ -108,7 +109,7 @@ class AdaptiveTransportAviary(BaseAviary):
         red_bottom = -self.RADIUS
 
         # holder felső széle
-        holder_top = -(self.TARGET_POSTION[2]-0.25) + 0.005
+        holder_top = -(self.TARGET_POSTION[2]-0.25) 
 
 
         # távolság a két henger között
@@ -116,17 +117,18 @@ class AdaptiveTransportAviary(BaseAviary):
 
 
         # MuJoCo box size harmadik értéke félmagasság
-        connector_half_height = connector_length / 2
+        connector_half_height = connector_length / 2+0.05
 
 
         # connector középpontja
-        connector_z = (red_bottom + holder_top) / 2
+        connector_z = (red_bottom + holder_top) / 2+0.05
 
 
         # bal és jobb tartó pozíció
         self.model.body_pos[self.left_connector_id][2] = connector_z
         self.model.body_pos[self.right_connector_id][2] = connector_z
-
+        self.model.body_pos[self.left_connector_id][0] = 0.1
+        self.model.body_pos[self.right_connector_id][0] = -0.1
 
         # bal és jobb tartó méret
         self.model.geom_size[self.left_connector_geom_id] = [
@@ -142,15 +144,30 @@ class AdaptiveTransportAviary(BaseAviary):
         ]
         mujoco.mj_forward(self.model, self.data)
         
+       
+        
         return self._computeObs(), self._computeInfo()
 
     def step(self, action):
+        if self.GRAB_FLAG_ENABLE and self.current_waypoint_idx[0] ==len(self.WAYPOINTS) - 1:
+            self.GRAB_FLAG=True
+            pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
+            segment_2_position = self.data.xpos[self.segment_2_id].copy()
+            if pay_load_grab_position[1]<segment_2_position[1]:
+                action = action.copy()
+                action[4] = 1
+                action[5] = -1
+            else:
+                action = action.copy()
+                action[4] = -1
+                action[5] = 1
 
         if self.current_waypoint_idx[0] <len(self.WAYPOINTS) - 1:
             action = action.copy()
             action[4:] = 0
-        obs, rewards, terminateds, truncateds, infos = super().step(action)
-        return obs, rewards, terminateds, truncateds, infos
+            self.GRAB_FLAG=False
+        obs, rewards, terminated, truncated, infos = super().step(action)
+        return obs, rewards, terminated, truncated, infos
     def _actionSpace(self):
         """Normalized [-1, 1] → mapped to RPM internally."""
         return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
@@ -175,12 +192,12 @@ class AdaptiveTransportAviary(BaseAviary):
 
         for i in range(self.NUM_DRONES):
             pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
-            link_2_position=self.data.qpos[self.link_2_qpos_adr:self.link_2_qpos_adr+3]+self.pos[0]
+            segment_2_position = self.data.xpos[self.segment_2_id].copy()
             state = self._getDroneStateVector(i)
             wp_idx = min(self.current_waypoint_idx[i], len(self.WAYPOINTS) - 1)
             wp = self.WAYPOINTS[wp_idx]
             rel_wp = wp - self.pos[i]
-            rel_gb = pay_load_grab_position - link_2_position
+            rel_gb = pay_load_grab_position - segment_2_position
             obs_list.append(np.hstack([
                 state[0:3], state[7:10], state[10:13], state[13:16], wp, rel_wp, pay_load_grab_position,rel_gb, state[-2:]
             ]))
@@ -194,25 +211,14 @@ class AdaptiveTransportAviary(BaseAviary):
             wp = self.WAYPOINTS[wp_idx]
             height_error = abs(self.pos[i][2] - wp[2])
             xy_error = np.linalg.norm(self.pos[i][0:2]-wp[0:2])
-            pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
-            link_2_position=self.data.qpos[self.link_2_qpos_adr:self.link_2_qpos_adr+3]+self.pos[i]
-            payload_error=np.linalg.norm(pay_load_grab_position-link_2_position)
-            
-            # Check waypoint reached
             if height_error < self.WAYPOINT_RADIUS/10  and xy_error < self.WAYPOINT_RADIUS:
                 # Large reward for successful payload pickup waypoint
                 if self.current_waypoint_idx[i]==1:
                     total += 50.0
                 else:
                     total += 5.0  # Big bonus for reaching waypoint
-                self.current_waypoint_idx[i] += 1
-                
-
-            if self.current_waypoint_idx[i] ==len(self.WAYPOINTS) - 1:
-                print(payload_error)
-                total-=0.1*payload_error
-                if payload_error<self.RADIUS+0.1:
-                    total+=1
+                self.current_waypoint_idx[i]=min(self.current_waypoint_idx[i]+1,len(self.WAYPOINTS) - 1)
+       
                 
             total -= height_error  # Approach reward
             total -= 0.1 * xy_error  # Approach reward
@@ -230,6 +236,16 @@ class AdaptiveTransportAviary(BaseAviary):
                 return True
             if abs(self.rpy[i, 0]) > np.pi / 2 or abs(self.rpy[i, 1]) > np.pi / 2:
                 return True
+            if self.GRAB_FLAG:
+               
+                pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
+                segment_2_position = self.data.xpos[self.segment_2_id].copy()
+                payload_error=np.linalg.norm(pay_load_grab_position-segment_2_position)
+               
+                           
+                if payload_error>0.2:
+                    return True
+
         return False
 
     def _computeTruncated(self):
