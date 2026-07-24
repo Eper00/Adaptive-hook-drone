@@ -49,6 +49,8 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         if curriculum_flag == True and isinstance(env, AdaptiveHookHover):
             env.TARGET_HEIGHT=np.random.uniform(0.8,2)
             env.random_acion_amplitude=1
+        if curriculum_flag == True and isinstance(env, AdaptiveTransportAviary):
+            env.GRAB_FLAG_ENABLE=True
         
         while True:
             action, _ = model.predict(obs, deterministic=True)
@@ -68,11 +70,9 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                     print("ok: GOAL")
                 time.sleep(0.01)
             elif env_type == "adaptive_transport":
-                if np.linalg.norm(env.TARGET_POSTION-env.pos[0])<0.1:
-                    pass#print("ok: TARGET")
-                if np.linalg.norm(env.GOAL_POSTION-env.pos[0])<0.1:
-                    pass#print("ok: GOAL")
-                time.sleep(0.01)
+               
+               
+                time.sleep(0.02)
             
             env.render()
             
