@@ -48,9 +48,9 @@ class CurriculumConfig:
     """
     """Adaptive transport:"""
     metric: str = "reward"
-    threshold_advance: float = 1400
-    threshold_retreat: float = -100
-    window_size: int = 20
+    threshold_advance: float = 1500
+    threshold_retreat: float = -200
+    window_size: int = 100
     num_levels: int = 2
     start_level: int = 0
     advance_count: int = 1

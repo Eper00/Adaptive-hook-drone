@@ -93,11 +93,11 @@ class AdaptiveTransportAviary(BaseAviary):
         ] = [self.TARGET_POSTION[0],self.TARGET_POSTION[1],self.TARGET_POSTION[2]-0.2]
 
         
-        self.MASS=np.random.uniform(0.1,0.1)
-        self.RADIUS=np.random.uniform(0.01,0.02)
+        self.MASS=np.random.uniform(0.05,0.07)
+        self.RADIUS=np.random.uniform(0.02,0.03)
         self.model.geom_size[self.target_geom_id] = [
             self.RADIUS,
-            0.15,
+            0.12,
             0
         ]
         self.model.body_pos[self.holder_body_id][2] = -(self.TARGET_POSTION[2]-0.25)
@@ -117,11 +117,11 @@ class AdaptiveTransportAviary(BaseAviary):
 
 
         # MuJoCo box size harmadik értéke félmagasság
-        connector_half_height = connector_length / 2+0.05
+        connector_half_height = connector_length / 2+0.005
 
 
         # connector középpontja
-        connector_z = (red_bottom + holder_top) / 2+0.05
+        connector_z = (red_bottom + holder_top) / 2+0.005
 
 
         # bal és jobb tartó pozíció
@@ -144,30 +144,72 @@ class AdaptiveTransportAviary(BaseAviary):
         ]
         mujoco.mj_forward(self.model, self.data)
         
-       
+        self.tendon_orientation=-1
         
         return self._computeObs(), self._computeInfo()
 
     def step(self, action):
-        if self.GRAB_FLAG_ENABLE and self.current_waypoint_idx[0] ==len(self.WAYPOINTS) - 1:
-            self.GRAB_FLAG=True
-            pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
-            segment_2_position = self.data.xpos[self.segment_2_id].copy()
-            if pay_load_grab_position[1]<segment_2_position[1]:
-                action = action.copy()
-                action[4] = 1
-                action[5] = -1
-            else:
-                action = action.copy()
-                action[4] = -1
-                action[5] = 1
+        action = action.copy()
+        if self.GRAB_FLAG_ENABLE:
+            self._update_grab_flag()
+      
+            
+      
 
-        if self.current_waypoint_idx[0] <len(self.WAYPOINTS) - 1:
-            action = action.copy()
+            # 1-es waypointnál próbál fogni
+            if self.GRAB_FLAG and self.current_waypoint_idx[0] == 1:
+
+                payload_pos = self.data.qpos[
+                    self.target_qpos_adr:self.target_qpos_adr+3
+                ]
+
+                hook_pos = self.data.xpos[self.segment_2_id].copy()
+
+                if payload_pos[1] < hook_pos[1]:
+                    action[4] = -1
+                    action[5] = 1
+                    self.tendon_orientation=1
+                else:
+                    action[4] = 1
+                    action[5] = -1
+                    self.tendon_orientation=-1
+
+            
+
+            else:
+                # nincs hook használat curriculum szinten
+                action[4:] = 0
+                self.GRAB_FLAG = False
+            if self.current_waypoint_idx[0] == 2:
+                self.GRAB_FLAG = False
+                if self.tendon_orientation==1:
+                    action[4] = -1
+                    action[5] = 1
+                else:
+                    action[4] = 1
+                    action[5] = -1
+        else:
+                       
             action[4:] = 0
-            self.GRAB_FLAG=False
+            self.GRAB_FLAG = False
+
         obs, rewards, terminated, truncated, infos = super().step(action)
         return obs, rewards, terminated, truncated, infos
+    def _update_grab_flag(self):
+
+        if self.GRAB_FLAG:
+            return
+
+        payload_pos = self.data.qpos[
+            self.target_qpos_adr:self.target_qpos_adr+3
+        ]
+
+        hook_pos = self.data.xpos[self.segment_2_id].copy()
+
+        error = np.linalg.norm(payload_pos-hook_pos)
+
+        if error < self.RADIUS + 0.02:
+            self.GRAB_FLAG = True
     def _actionSpace(self):
         """Normalized [-1, 1] → mapped to RPM internally."""
         return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
@@ -203,29 +245,93 @@ class AdaptiveTransportAviary(BaseAviary):
             ]))
         return np.concatenate(obs_list).astype(np.float32)
     
-    def _computeReward(self , action):
+
+    def _computeReward(self, action):
         total = 0.0
+
         for i in range(self.NUM_DRONES):
-            
+
             wp_idx = min(self.current_waypoint_idx[i], len(self.WAYPOINTS) - 1)
             wp = self.WAYPOINTS[wp_idx]
+
             height_error = abs(self.pos[i][2] - wp[2])
-            xy_error = np.linalg.norm(self.pos[i][0:2]-wp[0:2])
-            if height_error < self.WAYPOINT_RADIUS/10  and xy_error < self.WAYPOINT_RADIUS:
-                # Large reward for successful payload pickup waypoint
-                if self.current_waypoint_idx[i]==1:
-                    total += 50.0
-                else:
-                    total += 5.0  # Big bonus for reaching waypoint
-                self.current_waypoint_idx[i]=min(self.current_waypoint_idx[i]+1,len(self.WAYPOINTS) - 1)
-       
-                
-            total -= height_error  # Approach reward
-            total -= 0.1 * xy_error  # Approach reward
-            total -= 0.01 * np.linalg.norm(self.ang_v[i])  # Smooth flight
+            xy_error = np.linalg.norm(self.pos[i][0:2] - wp[0:2])
+
+            reached_waypoint = (
+                height_error < self.WAYPOINT_RADIUS / 10
+                and xy_error < self.WAYPOINT_RADIUS
+            )
+
+            # -------------------------------
+            # Curriculum nélkül
+            # -------------------------------
+            if not self.GRAB_FLAG_ENABLE:
+
+                if reached_waypoint:
+                    total += 20.0
+                    self.current_waypoint_idx[i] = min(
+                        self.current_waypoint_idx[i] + 1,
+                        len(self.WAYPOINTS) - 1
+                    )
+
+
+            # -------------------------------
+            # Curriculum: payload pickup
+            # -------------------------------
+            else:
+
+                # WP0 és WP2 normál waypoint
+                if self.current_waypoint_idx[i] == 0 or self.current_waypoint_idx[i] == 2:
+
+                    if reached_waypoint:
+                        total += 20.0
+
+                        self.current_waypoint_idx[i] = min(
+                            self.current_waypoint_idx[i] + 1,
+                            len(self.WAYPOINTS) - 1
+                        )
+
+
+                # WP1 = pickup waypoint
+                elif self.current_waypoint_idx[i] == 1:
+
+                    payload_pos = self.data.qpos[
+                        self.target_qpos_adr:self.target_qpos_adr+3
+                    ]
+
+                    hook_pos = self.data.xpos[self.segment_2_id].copy()
+
+                    payload_error = np.linalg.norm(payload_pos - hook_pos)
+
+                    # húzza a hookot a payload felé
+                    total -= 0.1 * payload_error
+
+
+                    # csak sikeres fogás után mehet tovább
+                    if self.GRAB_FLAG:
+
+                        total += 20.0
+
+                        self.current_waypoint_idx[i] = min(
+                            self.current_waypoint_idx[i] + 1,
+                            len(self.WAYPOINTS) - 1
+                        )
+                    
+
+
+            # ---------------------------------
+            # Általános shaping reward
+            # ---------------------------------
+            
+            total -= height_error
+            total -= 0.1 * xy_error
+
+            # sima repülés jutalmazása
+            total -= 0.01 * np.linalg.norm(self.ang_v[i])
+            total -= 0.5* np.linalg.norm(self.rpy[i,0]+self.rpy[i,1])
+
         if self._computeTerminated():
             total -= 100.0
-
 
 
         return float(total)
@@ -236,15 +342,17 @@ class AdaptiveTransportAviary(BaseAviary):
                 return True
             if abs(self.rpy[i, 0]) > np.pi / 2 or abs(self.rpy[i, 1]) > np.pi / 2:
                 return True
-            if self.GRAB_FLAG:
-               
-                pay_load_grab_position=self.data.qpos[self.target_qpos_adr:self.target_qpos_adr+3]
-                segment_2_position = self.data.xpos[self.segment_2_id].copy()
-                payload_error=np.linalg.norm(pay_load_grab_position-segment_2_position)
-               
-                           
-                if payload_error>0.2:
-                    return True
+        
+        if self.GRAB_FLAG_ENABLE and  self.current_waypoint_idx[0]>1:
+            payload_pos = self.data.qpos[
+                    self.target_qpos_adr:self.target_qpos_adr+3
+                    ]
+                            
+            hook_pos = self.data.xpos[self.segment_2_id].copy()
+                            
+            payload_error = np.linalg.norm(payload_pos - hook_pos)
+            if payload_error >0.2:
+                return True
 
         return False
 

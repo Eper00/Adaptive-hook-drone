@@ -171,95 +171,95 @@ def _generate_aviary_xml(
 
             <geom name="segment_geom_2"
                 type="capsule"
-                fromto="0 0 0   0 0 -0.040"
+                fromto="0 0 0   0 0 -0.050"
                 size="0.010"
                 rgba="0.8 0.4 0.2 1"
                 contype="1" conaffinity="1" condim="3"/>
 
-            <site name="s2_1" pos="0 0.009 -0.012" size="0.001"/>
-            <site name="s2_2" pos="0 0.009 -0.030" size="0.001"/>
-            <site name="s2_3" pos="0 -0.009 -0.012" size="0.001"/>
-            <site name="s2_4" pos="0 -0.009 -0.030" size="0.001"/>
+            <site name="s2_1" pos="0 0.009 -0.015" size="0.001"/>
+            <site name="s2_2" pos="0 0.009 -0.040" size="0.001"/>
+            <site name="s2_3" pos="0 -0.009 -0.015" size="0.001"/>
+            <site name="s2_4" pos="0 -0.009 -0.040" size="0.001"/>
 
-            <body name="segment_3" pos="0 0 -0.055">
+            <body name="segment_3" pos="0 0 -0.065">
                 <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
                 <joint name="link_3" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
 
                 <geom name="segment_geom_3"
                     type="capsule"
-                    fromto="0 0 0   0 0 -0.025"
-                    size="0.007"
+                    fromto="0 0 0   0 0 -0.035"
+                    size="0.008"
                     rgba="0.8 0.4 0.2 1"
                     contype="1" conaffinity="1" condim="3"/>
 
-                <site name="s3_1" pos="0 0.006 -0.008" size="0.0009"/>
-                <site name="s3_2" pos="0 0.006 -0.020" size="0.0009"/>
-                <site name="s3_3" pos="0 -0.006 -0.008" size="0.0009"/>
-                <site name="s3_4" pos="0 -0.006 -0.020" size="0.0009"/>
+                <site name="s3_1" pos="0 0.007 -0.010" size="0.0009"/>
+                <site name="s3_2" pos="0 0.007 -0.028" size="0.0009"/>
+                <site name="s3_3" pos="0 -0.007 -0.010" size="0.0009"/>
+                <site name="s3_4" pos="0 -0.007 -0.028" size="0.0009"/>
 
-                <body name="segment_4" pos="0 0 -0.035">
+                <body name="segment_4" pos="0 0 -0.045">
                     <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
                     <joint name="link_4" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
 
                     <geom name="segment_geom_4"
                         type="capsule"
-                        fromto="0 0 0   0 0 -0.015"
-                        size="0.005"
+                        fromto="0 0 0   0 0 -0.025"
+                        size="0.0065"
                         rgba="0.8 0.4 0.2 1"
                         contype="1" conaffinity="1" condim="3"/>
 
-                    <site name="s4_1" pos="0 0.004 -0.005" size="0.0008"/>
-                    <site name="s4_2" pos="0 0.004 -0.013" size="0.0008"/>
-                    <site name="s4_3" pos="0 -0.004 -0.005" size="0.0008"/>
-                    <site name="s4_4" pos="0 -0.004 -0.013" size="0.0008"/>
+                    <site name="s4_1" pos="0 0.005 -0.008" size="0.0008"/>
+                    <site name="s4_2" pos="0 0.005 -0.020" size="0.0008"/>
+                    <site name="s4_3" pos="0 -0.005 -0.008" size="0.0008"/>
+                    <site name="s4_4" pos="0 -0.005 -0.020" size="0.0008"/>
 
-                    <body name="segment_5" pos="0 0 -0.025">
+                    <body name="segment_5" pos="0 0 -0.035">
                         <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
                         <joint name="link_5" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
 
                         <geom name="segment_geom_5"
                             type="capsule"
-                            fromto="0 0 0   0 0 -0.010"
-                            size="0.004"
+                            fromto="0 0 0   0 0 -0.020"
+                            size="0.0055"
                             rgba="0.8 0.4 0.2 1"
                             contype="1" conaffinity="1" condim="3"/>
 
-                        <site name="s5_1" pos="0 0.003 -0.004" size="0.0007"/>
-                        <site name="s5_2" pos="0 0.003 -0.009" size="0.0007"/>
-                        <site name="s5_3" pos="0 -0.003 -0.004" size="0.0007"/>
-                        <site name="s5_4" pos="0 -0.003 -0.009" size="0.0007"/>
+                        <site name="s5_1" pos="0 0.004 -0.006" size="0.0007"/>
+                        <site name="s5_2" pos="0 0.004 -0.016" size="0.0007"/>
+                        <site name="s5_3" pos="0 -0.004 -0.006" size="0.0007"/>
+                        <site name="s5_4" pos="0 -0.004 -0.016" size="0.0007"/>
 
-                        <body name="segment_6" pos="0 0 -0.018">
+                        <body name="segment_6" pos="0 0 -0.028">
                             <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
                             <joint name="link_6" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
 
                             <geom name="segment_geom_6"
                                 type="capsule"
-                                fromto="0 0 0   0 0 -0.006"
-                                size="0.003"
+                                fromto="0 0 0   0 0 -0.015"
+                                size="0.0045"
                                 rgba="0.8 0.4 0.2 1"
                                 contype="1" conaffinity="1" condim="3"/>
 
-                            <site name="s6_1" pos="0 0.0025 -0.003" size="0.0006"/>
-                            <site name="s6_2" pos="0 0.0025 -0.006" size="0.0006"/>
-                            <site name="s6_3" pos="0 -0.0025 -0.003" size="0.0006"/>
-                            <site name="s6_4" pos="0 -0.0025 -0.006" size="0.0006"/>
+                            <site name="s6_1" pos="0 0.003 -0.005" size="0.0006"/>
+                            <site name="s6_2" pos="0 0.003 -0.012" size="0.0006"/>
+                            <site name="s6_3" pos="0 -0.003 -0.005" size="0.0006"/>
+                            <site name="s6_4" pos="0 -0.003 -0.012" size="0.0006"/>
 
-                            <body name="segment_7" pos="0 0 -0.012">
+                            <body name="segment_7" pos="0 0 -0.020">
                                 <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
                                 <joint name="link_7" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
 
                                 <geom name="segment_geom_7"
                                     type="capsule"
-                                    fromto="0 0 0   0 0 -0.003"
-                                    size="0.003"
+                                    fromto="0 0 0   0 0 -0.010"
+                                    size="0.004"
                                     rgba="0.8 0.4 0.2 1"
                                     contype="1" conaffinity="1" condim="3"/>
 
-                                <site name="s7_1" pos="0 0.002 -0.0015" size="0.0005"/>
-                                <site name="s7_2" pos="0 0.002 -0.003" size="0.0005"/>
-                                <site name="s7_3" pos="0 -0.002 -0.0015" size="0.0005"/>
-                                <site name="s7_4" pos="0 -0.002 -0.003" size="0.0005"/>
+                                <site name="s7_1" pos="0 0.003 -0.003" size="0.0005"/>
+                                <site name="s7_2" pos="0 0.003 -0.008" size="0.0005"/>
+                                <site name="s7_3" pos="0 -0.003 -0.003" size="0.0005"/>
+                                <site name="s7_4" pos="0 -0.003 -0.008" size="0.0005"/>
                             </body>
                         </body>
                     </body>
