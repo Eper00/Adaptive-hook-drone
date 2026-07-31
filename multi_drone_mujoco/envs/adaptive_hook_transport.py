@@ -68,6 +68,7 @@ class AdaptiveTransportAviary(BaseAviary):
             transport_target=True
         )
     def reset(self, seed=None, options=None):
+        self.GRAB_FLAG=False
         super().reset(seed=seed, options=options)
         self.current_waypoint_idx[:] = 0
         random_x=np.random.uniform(-1,1)
@@ -153,7 +154,6 @@ class AdaptiveTransportAviary(BaseAviary):
         if self.GRAB_FLAG_ENABLE:
             self._update_grab_flag()
       
-            
       
 
             # 1-es waypointnál próbál fogni
@@ -179,9 +179,7 @@ class AdaptiveTransportAviary(BaseAviary):
             else:
                 # nincs hook használat curriculum szinten
                 action[4:] = 0
-                self.GRAB_FLAG = False
             if self.current_waypoint_idx[0] == 2:
-                self.GRAB_FLAG = False
                 if self.tendon_orientation==1:
                     action[4] = -1
                     action[5] = 1
@@ -281,7 +279,8 @@ class AdaptiveTransportAviary(BaseAviary):
             else:
 
                 # WP0 és WP2 normál waypoint
-                if self.current_waypoint_idx[i] == 0 or self.current_waypoint_idx[i] == 2:
+                if self.current_waypoint_idx[i] == 0:
+
 
                     if reached_waypoint:
                         total += 20.0
@@ -317,7 +316,19 @@ class AdaptiveTransportAviary(BaseAviary):
                             len(self.WAYPOINTS) - 1
                         )
                     
-
+                elif self.current_waypoint_idx[i] == 2:
+                    if reached_waypoint:
+                        total += 20.0
+                        payload_pos = self.data.qpos[
+                                                self.target_qpos_adr:self.target_qpos_adr+3
+                                            ]
+                        
+                        hook_pos = self.data.xpos[self.segment_2_id].copy()
+                        
+                        payload_error = np.linalg.norm(payload_pos - hook_pos)
+                        
+                                            # húzza a hookot a payload felé
+                        total -= 0.1 * payload_error
 
             # ---------------------------------
             # Általános shaping reward
@@ -343,16 +354,7 @@ class AdaptiveTransportAviary(BaseAviary):
             if abs(self.rpy[i, 0]) > np.pi / 2 or abs(self.rpy[i, 1]) > np.pi / 2:
                 return True
         
-        if self.GRAB_FLAG_ENABLE and  self.current_waypoint_idx[0]>1:
-            payload_pos = self.data.qpos[
-                    self.target_qpos_adr:self.target_qpos_adr+3
-                    ]
-                            
-            hook_pos = self.data.xpos[self.segment_2_id].copy()
-                            
-            payload_error = np.linalg.norm(payload_pos - hook_pos)
-            if payload_error >0.2:
-                return True
+  
 
         return False
 

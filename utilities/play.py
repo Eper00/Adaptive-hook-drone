@@ -72,7 +72,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
             elif env_type == "adaptive_transport":
                
                
-                time.sleep(0.02)
+                time.sleep(0.01)
             
             env.render()
             
