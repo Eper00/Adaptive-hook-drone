@@ -50,8 +50,13 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
             env.TARGET_HEIGHT=np.random.uniform(0.8,2)
             env.random_acion_amplitude=1
         if curriculum_flag == True and isinstance(env, AdaptiveTransportAviary):
+            env.min_mass=0.05
+            env.max_mass=0.3
+            env.min_radius=0.02
+            env.max_radius=0.04
             env.GRAB_FLAG_ENABLE=True
-        
+            env.goal_random_amplitude=1
+            
         while True:
             action, _ = model.predict(obs, deterministic=True)
             if env_type == "adaptive_hook_hover":

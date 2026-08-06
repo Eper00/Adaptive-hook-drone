@@ -718,7 +718,7 @@ class BaseAviary(gym.Env):
         if self.DRONE_MODEL ==DroneModel.BB_HOOK:
             self.segment_2_id = self.model.body("segment_2").id
             
-        if transport_target:
+        if transport_target :
             self.target_joint_id = self.model.joint("target_joint").id
             self.target_qpos_adr = self.model.jnt_qposadr[self.target_joint_id]
 

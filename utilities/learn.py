@@ -23,11 +23,26 @@ def adjust_difficulty(env, level,level_changed=True):
             env.random_acion_amplitude = min(env.random_acion_amplitude + 0.05, 1)
     if isinstance(env,AdaptiveTransportAviary):
         if level_changed:
-            if level > 0:
+            if level==0:
+                env.GRAB_FLAG_ENABLE=False
+                env.goal_random_amplitude=1
+            elif level ==1:
                 print("Grab flag enabled")
                 env.GRAB_FLAG_ENABLE=True
-            elif level==0:
-                env.GRAB_FLAG_ENABLE=False
+                env.min_mass=0.05
+                env.max_mass=0.1
+                env.min_radius=0.02
+                env.max_radius=0.03
+                env.goal_random_amplitude=1
+            
+            elif level==2:
+                env.min_mass=0.05
+                env.max_mass=0.3
+                env.min_radius=0.02
+                env.max_radius=0.04
+                env.GRAB_FLAG_ENABLE=True
+                env.goal_random_amplitude=1
+           
 def train_single(
     total_timesteps: int = 100_000,
     output_dir: str = "results/rl_hover",

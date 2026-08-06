@@ -82,8 +82,8 @@ class AdaptiveFlyThroughAviary(BaseAviary):
                 ])
         
         
-        self.model.body_pos[self.target_id] = self.TARGET_POSTION
-        self.model.site_pos[self.goal_id] = self.GOAL_POSTION
+       
+       
         return super().reset(seed=seed, options=options)
     def step(self, action):
         
@@ -129,19 +129,27 @@ class AdaptiveFlyThroughAviary(BaseAviary):
             wp = self.WAYPOINTS[wp_idx]
             height_error = abs(self.pos[i][2] - wp[2])
             xy_error = np.linalg.norm(self.pos[i][0:2]-wp[0:2])
+           
+            smooth_penalty = np.linalg.norm(self.ang_v[i])
+            stability_penalty = np.linalg.norm(self.rpy[i][0:2])
             # Check waypoint reached
             if height_error < self.WAYPOINT_RADIUS/10  and xy_error < self.WAYPOINT_RADIUS:
-                if wp_idx==1:
-                    total += 50.0
-                else:
+                if wp_idx==0:
+                    total += 20.0
+                elif wp_idx==1:
+
+                    total += 20.0  # Big bonus for reaching waypoint
+                elif wp_idx==2:
                     total += 5.0  # Big bonus for reaching waypoint
                 self.current_waypoint_idx[i] += 1
                 
            
-
+            total -= 0.03 * stability_penalty
+            total -= 0.06 * smooth_penalty
             total -= height_error  # Approach reward
             total -= 0.1 * xy_error  # Approach reward
-            total -= 0.01 * np.linalg.norm(self.ang_v[i])  # Smooth flight
+            
+            
         if self._computeTerminated():
             total -= 100.0
 
