@@ -10,12 +10,12 @@ from multi_drone_mujoco.envs.base_aviary import BaseAviary
 from multi_drone_mujoco.utils.enums import DroneModel, Physics, ActionType, ObservationType
 
 
-class VelocityAviary(BaseAviary):
+class AdaptiveVelocityAviary(BaseAviary):
     """Single-drone velocity tracking task."""
 
     def __init__(
-        self,
-        drone_model: DroneModel = DroneModel.CF2X,
+       self,
+        drone_model: DroneModel = DroneModel.BB_HOOK,
         physics: Physics = Physics.MJC,
         sim_freq: int = 240,
         ctrl_freq: int = 48,
@@ -51,13 +51,22 @@ class VelocityAviary(BaseAviary):
             self.TARGET_VEL = self.np_random.uniform(-0.5, 0.5, size=4)
             self.TARGET_VEL[3] *= 0.5  # Reduce yaw rate
         return obs, info
-
+    def step(self, action):
+        action=action.copy()
+        action[-2:]=0
+        obs, reward, terminated, truncated, info = super().step(action)
+        return obs, reward, terminated, truncated, info
     def _actionSpace(self):
-        return spaces.Box(low=-np.ones(4, dtype=np.float32), high=np.ones(4, dtype=np.float32))
-
+        return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
+    
     def _observationSpace(self):
-        # State (12) + target velocity (4) = 16
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(13,), dtype=np.float32)
+        obs_lower_pos = np.full(13, -np.inf)
+        obs_upper_pos = np.full(13 , np.inf)
+        obs_lower_tendon_lengths = np.full(2, -1)
+        obs_upper_tendon_lengths = np.full(2, 1)
+        return spaces.Box(low=np.hstack([obs_lower_pos.astype(np.float32),obs_lower_tendon_lengths.astype(np.float32)]),
+                               high=np.hstack([obs_upper_pos.astype(np.float32),obs_upper_tendon_lengths.astype(np.float32)]))
+
 
     def _preprocessAction(self, action):
         action = np.clip(np.array(action).flatten(), -1, 1)
@@ -65,7 +74,7 @@ class VelocityAviary(BaseAviary):
 
     def _computeObs(self):
         state = self._getDroneStateVector(0)
-        obs = np.hstack([state[7:10], state[10:13], state[13:16], self.TARGET_VEL])
+        obs = np.hstack([state[7:10], state[10:13], state[13:16], self.TARGET_VEL,state[-2:]])
         return obs.astype(np.float32)
 
     def _computeReward(self , action):
