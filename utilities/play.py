@@ -23,6 +23,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
     from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
     from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
+    from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
     print(f"Loading model from: {model_path}")
     model = PPO.load(model_path)
 
@@ -40,7 +41,8 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         env = AdaptiveFlyThroughAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
     elif env_type == "adaptive_transport":
         env = AdaptiveTransportAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
-
+    elif env_type == "adaptive_velocity":
+        env = AdaptiveVelocityAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
 
     for ep in range(episodes):
         obs, info = env.reset()
@@ -78,7 +80,18 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                
                
                 time.sleep(0.01)
-            
+            elif env_type == "velocity_aviary":
+                print(f"Target velocity: {env.TARGET_VEL}, Current velocity: {env.vel[0, :3]}, Current yaw rate: {env.ang_v[0, 2]}")
+                vel_error = np.linalg.norm(env.vel[0, :3] - env.TARGET_VEL[:3])
+                yaw_rate_error = abs(env.ang_v[0, 2] - env.TARGET_VEL[3])
+                print(f"Velocity error: {vel_error}, Yaw rate error: {yaw_rate_error}")
+                time.sleep(0.005)
+            elif env_type == "adaptive_velocity":
+                print(f"Target velocity: {env.TARGET_VEL}, Current velocity: {env.vel[0, :3]}, Current yaw rate: {env.ang_v[0, 2]}")
+                vel_error = np.linalg.norm(env.vel[0, :3] - env.TARGET_VEL[:3])
+                yaw_rate_error = abs(env.ang_v[0, 2] - env.TARGET_VEL[3])
+                print(f"Velocity error: {vel_error}, Yaw rate error: {yaw_rate_error}")
+                time.sleep(0.01)
             env.render()
             
             obs, reward, terminated, truncated, info = env.step(action)

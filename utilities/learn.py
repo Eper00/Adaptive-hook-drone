@@ -14,6 +14,7 @@ from multi_drone_mujoco.envs.adaptive_hook_hover import AdaptiveHookHover
 from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
 from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
 from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
+from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
 from multi_drone_mujoco.wrappers.curriculum import CurriculumWrapper,CurriculumCallback
 from stable_baselines3.common.callbacks import CallbackList
 import numpy as np
@@ -83,6 +84,9 @@ def train_single(
         learning_rate = 3e-4
     elif args.env_type == "adaptive_transport":
         env_class = AdaptiveTransportAviary
+        learning_rate = 3e-4
+    elif args.env_type == "adaptive_velocity":
+        env_class = AdaptiveVelocityAviary
         learning_rate = 3e-4
     else:
         env_class = HoverAviary
