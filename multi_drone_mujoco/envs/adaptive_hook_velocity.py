@@ -3,6 +3,7 @@
 Task: follow velocity commands [vx, vy, vz, yaw_rate].
 """
 
+import mujoco
 import numpy as np
 from gymnasium import spaces
 
@@ -24,11 +25,25 @@ class AdaptiveVelocityAviary(BaseAviary):
         initial_xyzs=None,
         render_mode=None,
     ):
+        self.MIN_PAYLOAD_MASS = 0.05
+        self.MAX_PAYLOAD_MASS = 0.3
+        self.MIN_PAYLOAD_RADIUS = 0.02
+        self.MAX_PAYLOAD_RADIUS = 0.04
+        
+        self.GOAL_RANDOM_AMPLITUDE = 1.0
+        self.EPISODE_LEN_SEC = 10
+        
         self.EPISODE_LEN_SEC = 10
         self.TARGET_VEL = np.array([0.0, 0.0, 0.0, 0.0])  # Will be randomized
-
+        self.PAYLOAD_RADIUS = 0.05
+        self.PAYLOAD_MASS = 0.2
+        
+        self.GRAB_FLAG = False
+        self.GRAB_FLAG_ENABLE = False
+        self.tendon_orientation=0
+        self.GRAB_FLAG_ENABLE=False
         if initial_xyzs is None:
-            initial_xyzs = np.array([[0.0, 0.0, 6]])
+            initial_xyzs = np.array([[0.0, 0.0, 10.8]])
 
         super().__init__(
             drone_model=drone_model,
@@ -42,18 +57,103 @@ class AdaptiveVelocityAviary(BaseAviary):
             act_type=ActionType.RPM,
             initial_xyzs=initial_xyzs,
             render_mode=render_mode,
+            transport_target=True
         )
-
     def reset(self, seed=None, options=None):
-        obs, info = super().reset(seed=seed, options=options)
+        super().reset(seed=seed, options=options)
         # Randomize target velocity
         if self.np_random is not None:
-            self.TARGET_VEL = self.np_random.uniform(-0.5, 0.5, size=4)
+            self.TARGET_VEL = self.np_random.uniform(-1, 1, size=4)
             self.TARGET_VEL[3] *= 0.5  # Reduce yaw rate
-        return obs, info
+        
+        if self.GRAB_FLAG_ENABLE:
+            self.MASS=np.random.uniform(self.MIN_PAYLOAD_MASS,self.MAX_PAYLOAD_MASS)
+            self.RADIUS=np.random.uniform(self.MIN_PAYLOAD_RADIUS,self.MAX_PAYLOAD_RADIUS)
+            hook_pos = self.data.xpos[self.segment_2_id].copy()
+            offset=np.random.choice([-0.001, 0.001])
+            self.data.qpos[
+                        self.target_qpos_adr:self.target_qpos_adr+3
+            ] = [hook_pos[0]+offset,hook_pos[1],hook_pos[2]]
+            
+                    
+        
+            self.model.geom_size[self.target_geom_id] = [
+                        self.RADIUS,
+                        0.12,
+                        0
+                    ]
+
+            random_z=np.random.uniform(0.45-0.2,0.8-0.2)
+            self.model.body_pos[self.holder_body_id][2] = -random_z
+            
+            
+                
+                    # szürke tartó tömege
+            self.model.body_mass[self.holder_body_id] = self.MASS
+            red_bottom = -self.RADIUS
+            
+                    # holder felső széle
+            holder_top = -(random_z) 
+            self.model.site_pos[self.goal_id] = [100 ,100 ,100]
+            
+                    # távolság a két henger között
+            connector_length = abs(red_bottom - holder_top)
+            
+            
+                    # MuJoCo box size harmadik értéke félmagasság
+            connector_half_height = connector_length / 2+0.005
+            
+            
+                    # connector középpontja
+            connector_z = (red_bottom + holder_top) / 2+0.005
+            
+            
+                    # bal és jobb tartó pozíció
+            self.model.body_pos[self.left_connector_id][2] = connector_z
+            self.model.body_pos[self.right_connector_id][2] = connector_z
+            self.model.body_pos[self.left_connector_id][0] = 0.1
+            self.model.body_pos[self.right_connector_id][0] = -0.1
+            
+                    # bal és jobb tartó méret
+            self.model.geom_size[self.left_connector_geom_id] = [
+                        0.005,
+                        0.015,
+                        connector_half_height
+                    ]
+            
+            self.model.geom_size[self.right_connector_geom_id] = [
+                        0.005,
+                        0.015,
+                        connector_half_height
+                ]
+
+            self.tendon_orientation=np.sign(offset)
+
+        else:
+            self.model.site_pos[self.goal_id] = [100 ,100 ,100]
+            self.data.qpos[
+                                    self.target_qpos_adr:self.target_qpos_adr+3
+                        ] = [0.5,100,100]
+            self.model.body_pos[self.holder_body_id][2] = -0.4
+        mujoco.mj_forward(self.model, self.data)
+                
+       
+                
+        return self._computeObs(), self._computeInfo()
+        
     def step(self, action):
         action=action.copy()
-        action[-2:]=0
+       
+        if self.GRAB_FLAG_ENABLE:
+            if self.tendon_orientation==1:
+                action[4] = 1
+                action[5] = -1
+            else:
+                action[4] = -1
+                action[5] = 1
+                self.tendon_orientation=-1
+        else:
+            action[-2:] = 0
         obs, reward, terminated, truncated, info = super().step(action)
         return obs, reward, terminated, truncated, info
     def _actionSpace(self):

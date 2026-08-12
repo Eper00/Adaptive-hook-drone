@@ -9,11 +9,6 @@ import gymnasium as gym
 from dataclasses import dataclass, field
 from typing import Callable, Optional, Dict, Any
 from collections import deque
-from multi_drone_mujoco.envs.hover_aviary import HoverAviary
-from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
-from multi_drone_mujoco.envs.adaptive_hook_hover import AdaptiveHookHover
-from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
-import time
 from stable_baselines3.common.callbacks import BaseCallback
 import numpy as np
 @dataclass
@@ -47,14 +42,23 @@ class CurriculumConfig:
     advance_count: int = 1
     """
     """Adaptive transport:"""
+
     metric: str = "reward"
     threshold_advance: float = 1000
     threshold_retreat: float = 0
     window_size: int = 100
+    num_levels: int = 4
+    start_level: int = 0
+    advance_count: int = 1
+    """Adaptive velocity:
+    metric: str = "reward"
+    threshold_advance: float = 155
+    threshold_retreat: float = -250
+    window_size: int = 100
     num_levels: int = 3
     start_level: int = 0
     advance_count: int = 1
-    
+    """
 
 class CurriculumWrapper(gym.Wrapper):
     """Gymnasium wrapper that implements automatic curriculum learning.

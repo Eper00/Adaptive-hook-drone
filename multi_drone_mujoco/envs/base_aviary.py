@@ -442,15 +442,18 @@ def _generate_aviary_xml(
                 <geom name="left_connector_geom"
                     type="box"
                     size="0.005 0.015 0.10"
-                    rgba="0.8 0.8 0.8 1"/>
+                    rgba="0.8 0.8 0.8 1"
+                    contype="1"
+                    conaffinity="1"/>
             </body>
-
 
             <body name="right_connector" pos="0.05 0 -0.10">
                 <geom name="right_connector_geom"
                     type="box"
                     size="0.005 0.015 0.10"
-                    rgba="0.8 0.8 0.8 1"/>
+                    rgba="0.8 0.8 0.8 1"
+                    contype="1"
+                    conaffinity="1"/>
             </body>
 
 
@@ -787,7 +790,6 @@ class BaseAviary(gym.Env):
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
         """Reset the environment."""
         super().reset(seed=seed)
-
         mujoco.mj_resetData(self.model, self.data)
 
         # Set initial states
