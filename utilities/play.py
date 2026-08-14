@@ -24,9 +24,11 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
     from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
     from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
+    from multi_drone_mujoco.envs.adaptive_hook_director_velocity import AdaptiveTransportDirectorAviary
+    
     print(f"Loading model from: {model_path}")
     model = PPO.load(model_path)
-
+    
     if env_type == "multi":
         env = MultiHoverAviary(num_drones=2, ctrl_freq=48, sim_freq=240, render_mode="rgb_array")
     elif env_type == "adaptive_hook_hover":
@@ -43,7 +45,10 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         env = AdaptiveTransportAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
     elif env_type == "adaptive_velocity":
         env = AdaptiveVelocityAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
-
+    elif env_type == "adaptive_director":
+        env= AdaptiveTransportDirectorAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+    success=0
+    failed=0
     for ep in range(episodes):
         obs, info = env.reset()
         total_reward = 0
@@ -51,15 +56,24 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         if curriculum_flag == True and isinstance(env, AdaptiveHookHover):
             env.TARGET_HEIGHT=np.random.uniform(0.8,2)
             env.random_acion_amplitude=1
-        if curriculum_flag == True and isinstance(env, AdaptiveTransportAviary):
+        if curriculum_flag == True and (isinstance(env, AdaptiveTransportAviary) or isinstance(env, AdaptiveTransportDirectorAviary)):
+            env.GRAB_FLAG_ENABLE=True
+            env.MIN_PAYLOAD_MASS=0.05
+            env.MAX_PAYLOAD_MASS=0.3
+            env.MIN_PAYLOAD_RADIUS=0.02
+            env.MAX_PAYLOAD_RADIUS=0.04
+            env.GOAL_RANDOM_AMPLITUDE=1
+            env.PAYLOAD_TERMINATION=True
+        if curriculum_flag == True and isinstance(env, AdaptiveVelocityAviary):
             env.min_mass=0.05
             env.max_mass=0.3
             env.min_radius=0.02
             env.max_radius=0.04
             env.GRAB_FLAG_ENABLE=True
-            env.goal_random_amplitude=1
             
-        while True:
+        terminated = False
+        truncated = False
+        while not terminated and not truncated:
             action, _ = model.predict(obs, deterministic=True)
             if env_type == "adaptive_hook_hover":
                print((env.TARGET_HEIGHT,env.pos[0][2]))
@@ -77,9 +91,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                     print("ok: GOAL")
                 time.sleep(0.01)
             elif env_type == "adaptive_transport":
-               
-               
-                time.sleep(0.01)
+                env.render_mode=None
             elif env_type == "velocity_aviary":
                 print(f"Target velocity: {env.TARGET_VEL}, Current velocity: {env.vel[0, :3]}, Current yaw rate: {env.ang_v[0, 2]}")
                 vel_error = np.linalg.norm(env.vel[0, :3] - env.TARGET_VEL[:3])
@@ -88,18 +100,19 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                 time.sleep(0.005)
             elif env_type == "adaptive_velocity":
                 print(f"Target velocity: {env.TARGET_VEL}, Current velocity: {env.vel[0, :3]}, Current yaw rate: {env.ang_v[0, 2]}")
-                vel_error = np.linalg.norm(env.vel[0, :3] - env.TARGET_VEL[:3])
-                yaw_rate_error = abs(env.ang_v[0, 2] - env.TARGET_VEL[3])
-                print(f"Velocity error: {vel_error}, Yaw rate error: {yaw_rate_error}")
-                time.sleep(0.01)
+            elif env_type=="adaptive_director":
+                time.sleep(0.1)
             env.render()
             
             obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             steps += 1
-            if terminated or truncated:
-                break
-
+           
+            if terminated:
+                failed+=1
+            if truncated:
+                success+=1
+        print(f"Success: {success}, Failed: {failed}, Ratio: {success/(success+failed) if (success+failed)>0 else 0}")
         print(f"  Episode {ep + 1}: reward={total_reward:.2f}, steps={steps}")
 
     env.close()

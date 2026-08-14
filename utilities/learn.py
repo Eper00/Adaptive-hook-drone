@@ -15,6 +15,7 @@ from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
 from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
 from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
 from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
+from multi_drone_mujoco.envs.adaptive_hook_director_velocity import AdaptiveTransportDirectorAviary
 from multi_drone_mujoco.wrappers.curriculum import CurriculumWrapper,CurriculumCallback
 from stable_baselines3.common.callbacks import CallbackList
 import numpy as np
@@ -22,28 +23,61 @@ def adjust_difficulty(env, level,level_changed=True):
     if isinstance(env, AdaptiveHookHover):
         if level_changed:
             env.random_acion_amplitude = min(env.random_acion_amplitude + 0.05, 1)
-    if isinstance(env,AdaptiveTransportAviary):
+    if isinstance(env,AdaptiveTransportAviary) or isinstance(env,AdaptiveTransportDirectorAviary):
+        if level_changed:
+            if level==0:
+                
+                env.GRAB_FLAG_ENABLE=False
+                env.GOAL_RANDOM_AMPLITUDE=1.5
+                env.PAYLOAD_TERMINATION=False
+            elif level ==1:
+                print(f"New level: {level}")
+                env.GRAB_FLAG_ENABLE=True
+                env.MIN_PAYLOAD_MASS=0.05
+                env.MAX_PAYLOAD_MASS=0.1
+                env.MIN_PAYLOAD_RADIUS=0.02
+                env.MAX_PAYLOAD_RADIUS=0.03
+                env.GOAL_RANDOM_AMPLITUDE=1
+                env.PAYLOAD_TERMINATION=False
+            elif level==2:
+                print(f"New level: {level}")
+                env.GRAB_FLAG_ENABLE=True
+                env.MIN_PAYLOAD_MASS=0.01
+                env.MAX_PAYLOAD_MASS=0.2
+                env.MIN_PAYLOAD_RADIUS=0.02
+                env.MAX_PAYLOAD_RADIUS=0.04
+                env.GOAL_RANDOM_AMPLITUDE=1
+                env.PAYLOAD_TERMINATION=False
+            elif level==3:
+                print(f"New level: {level}")
+                env.GRAB_FLAG_ENABLE=True
+                env.MIN_PAYLOAD_MASS=0.01
+                env.MAX_PAYLOAD_MASS=0.2
+                env.MIN_PAYLOAD_RADIUS=0.02
+                env.MAX_PAYLOAD_RADIUS=0.04
+                env.GOAL_RANDOM_AMPLITUDE=1.5
+                env.PAYLOAD_TERMINATION=True
+    if isinstance(env,AdaptiveVelocityAviary):
         if level_changed:
             if level==0:
                 env.GRAB_FLAG_ENABLE=False
-                env.goal_random_amplitude=1
+               
             elif level ==1:
-                print("Grab flag enabled")
+                print(f"New level: {level}")
                 env.GRAB_FLAG_ENABLE=True
                 env.min_mass=0.05
                 env.max_mass=0.1
                 env.min_radius=0.02
                 env.max_radius=0.03
-                env.goal_random_amplitude=1
-            
+               
             elif level==2:
-                env.min_mass=0.05
-                env.max_mass=0.3
+                print(f"New level: {level}")
+                env.min_mass=0.01
+                env.max_mass=0.2
                 env.min_radius=0.02
                 env.max_radius=0.04
                 env.GRAB_FLAG_ENABLE=True
-                env.goal_random_amplitude=1
-           
+    
 def train_single(
     total_timesteps: int = 100_000,
     output_dir: str = "results/rl_hover",
@@ -87,6 +121,9 @@ def train_single(
         learning_rate = 3e-4
     elif args.env_type == "adaptive_velocity":
         env_class = AdaptiveVelocityAviary
+        learning_rate = 3e-4
+    elif args.env_type== "adaptive_director":
+        env_class = AdaptiveTransportDirectorAviary
         learning_rate = 3e-4
     else:
         env_class = HoverAviary
