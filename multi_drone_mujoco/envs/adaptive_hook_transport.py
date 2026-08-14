@@ -92,9 +92,16 @@ class AdaptiveTransportAviary(BaseAviary):
        
         self.current_waypoint_idx[:] = 0
        
+        while True:
+            x = np.random.uniform(-1, 1)
+            y = np.random.uniform(-1, 1)
+
+            if abs(x) > 0.2 or abs(y) > 0.2:
+                break
+
         self.TARGET_POSITION = np.array([
-            np.random.uniform(-1, 1),
-            np.random.uniform(-1, 1),
+            x,
+            y,
             np.random.uniform(0.45, 0.8),
         ])
 

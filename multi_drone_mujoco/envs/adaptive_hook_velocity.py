@@ -63,7 +63,7 @@ class AdaptiveVelocityAviary(BaseAviary):
         super().reset(seed=seed, options=options)
         # Randomize target velocity
         if self.np_random is not None:
-            self.TARGET_VEL = self.np_random.uniform(-1, 1, size=4)
+            self.TARGET_VEL = self.np_random.uniform(-0.5, 0.5, size=4)
             self.TARGET_VEL[3] *= 0.5  # Reduce yaw rate
         
         if self.GRAB_FLAG_ENABLE:

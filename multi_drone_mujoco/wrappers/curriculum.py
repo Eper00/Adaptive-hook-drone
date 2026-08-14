@@ -52,8 +52,8 @@ class CurriculumConfig:
     advance_count: int = 1
     """Adaptive velocity:
     metric: str = "reward"
-    threshold_advance: float = 155
-    threshold_retreat: float = -250
+    threshold_advance: float = 110
+    threshold_retreat: float = -1000
     window_size: int = 100
     num_levels: int = 3
     start_level: int = 0
@@ -110,6 +110,7 @@ class CurriculumWrapper(gym.Wrapper):
 
     @property
     def progress(self) -> float:
+        
         """Normalized progress through curriculum [0, 1]."""
         return self.current_level / max(self.config.num_levels - 1, 1)
 
