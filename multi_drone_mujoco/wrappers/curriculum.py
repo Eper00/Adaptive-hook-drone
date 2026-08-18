@@ -45,7 +45,7 @@ class CurriculumConfig:
 
     metric: str = "reward"
     threshold_advance: float = 1000
-    threshold_retreat: float = 0
+    threshold_retreat: float = -1000
     window_size: int = 100
     num_levels: int = 4
     start_level: int = 0

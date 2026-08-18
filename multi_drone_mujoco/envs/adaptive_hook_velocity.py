@@ -174,7 +174,7 @@ class AdaptiveVelocityAviary(BaseAviary):
 
     def _computeObs(self):
         state = self._getDroneStateVector(0)
-        obs = np.hstack([state[7:10], state[10:13], state[13:16], self.TARGET_VEL,state[-2:]])
+        obs = np.hstack([state[7:10], state[10:13], state[13:16], self.TARGET_VEL, state[-2:]])
         return obs.astype(np.float32)
 
     def _computeReward(self , action):

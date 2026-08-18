@@ -77,7 +77,7 @@ class AdaptiveTransportAviary(BaseAviary):
             gui=gui,
             record=record,
             obs_type=ObservationType.KIN,
-            act_type=ActionType.RPM,
+            act_type=ActionType.HOOK,
             initial_xyzs=initial_xyzs,
             render_mode=render_mode,
             transport_target=True,
@@ -192,50 +192,60 @@ class AdaptiveTransportAviary(BaseAviary):
 
         mujoco.mj_forward(self.model, self.data)
 
-        self.tendon_orientation = -1
 
         return self._computeObs(), self._computeInfo()
 
     def step(self, action):
         action = action.copy()
-        
+        # --------------------------------------------------
+        # TENDON CONTROL
+        # --------------------------------------------------
         if self.GRAB_FLAG_ENABLE:
+
             self._update_grab_flag()
 
-            pickup_idx = 2 if self.PAYLOAD_TERMINATION else 1
+            if self.GRAB_FLAG:
 
-            if (
-                self.GRAB_FLAG
-                and self.current_waypoint_idx[0] == pickup_idx
-            ):
-                payload_pos = self.data.qpos[
-                    self.target_qpos_adr:self.target_qpos_adr + 3
-                ]
+                pickup_idx = 2 if self.PAYLOAD_TERMINATION else 1
 
-                hook_pos = self.data.xpos[self.segment_2_id].copy()
+                if self.current_waypoint_idx[0] >= pickup_idx:
 
-                if payload_pos[1] < hook_pos[1]:
-                    action[4] = 1
-                    action[5] = -1
-                    self.tendon_orientation = 1
+                    payload_pos = self.data.qpos[
+                        self.target_qpos_adr:self.target_qpos_adr + 3
+                    ]
+
+                    hook_pos = self.data.xpos[self.segment_2_id].copy()
+
+                    # --------------------------------------
+                    # RL action[4] = tendon magnitude
+                    # [-1, 1] -> [0, 1]
+                    # --------------------------------------
+                    magnitude = 0.5 * (action[4] + 1.0)
+
+                    # --------------------------------------
+                    # Direction is given by geometry
+                    # --------------------------------------
+                    if payload_pos[1] < hook_pos[1]:
+                        direction = 1.0
+                        self.tendon_orientation = 1
+                    else:
+                        direction = -1.0
+                        self.tendon_orientation = -1
+
+                    # --------------------------------------
+                    # Apply symmetric tendon action
+                    # --------------------------------------
+                    action[4] = direction * magnitude
+                    action[5] = -direction * magnitude
+
                 else:
-                    action[4] = -1
-                    action[5] = 1
-                    self.tendon_orientation = -1
+                    action[4:] = 0.0
 
             else:
-                action[4:] = 0
-
-            if self.current_waypoint_idx[0] == pickup_idx + 1:
-                if self.tendon_orientation == 1:
-                    action[4] = 1
-                    action[5] = -1
-                else:
-                    action[4] = -1
-                    action[5] = 1
+                action[4:] = 0.0
 
         else:
-            action[4:] = 0
+            action[4:] = 0.0
             self.GRAB_FLAG = False
 
         obs, rewards, terminated, truncated, infos = super().step(action)
@@ -270,8 +280,8 @@ class AdaptiveTransportAviary(BaseAviary):
         )
 
     def _observationSpace(self):
-        obs_lower_pos = np.full(24, -np.inf, dtype=np.float32)
-        obs_upper_pos = np.full(24, np.inf, dtype=np.float32)
+        obs_lower_pos = np.full(33, -np.inf, dtype=np.float32)
+        obs_upper_pos = np.full(33, np.inf, dtype=np.float32)
 
         obs_lower_tendon_lengths = np.full(2, -1, dtype=np.float32)
         obs_upper_tendon_lengths = np.full(2, 1, dtype=np.float32)
@@ -287,12 +297,7 @@ class AdaptiveTransportAviary(BaseAviary):
             ]),
         )
 
-    def _preprocessAction(self, action):
-        action = np.clip(np.array(action).flatten(), -1, 1)
-
-        rpms = self._normalizedActionToRPM(action).reshape(1, 4)
-
-        return rpms
+  
 
     def _computeObs(self):
         obs_list = []
@@ -301,37 +306,45 @@ class AdaptiveTransportAviary(BaseAviary):
             payload_pos = self.data.qpos[
                 self.target_qpos_adr:self.target_qpos_adr + 3
             ]
-
-            hook_pos = self.data.xpos[self.segment_2_id].copy()
-
             state = self._getDroneStateVector(i)
 
             wp_idx = min(
                 self.current_waypoint_idx[i],
                 len(self.WAYPOINTS) - 1,
             )
-
             wp = self.WAYPOINTS[wp_idx]
-
+            segment_ids = [
+                getattr(self, f"segment_{j}_id")
+                for j in range(2, 8)
+            ]
+            rel_grab = [
+            payload_pos - self.data.xpos[segment_id].copy()
+            for segment_id in segment_ids
+        ]
+           
             rel_wp = wp - self.pos[i]
-            rel_grab = payload_pos - hook_pos
 
             obs_list.append(
                 np.hstack([
-                    state[0:3],
-                    state[7:10],
-                    state[10:13],
-                    state[13:16],
-                    wp,
-                    rel_wp,
-                    payload_pos,
-                    rel_grab,
-                    state[-2:],
+                    state[0:3],      # 3
+                    state[7:10],     # 3
+                    state[10:13],    # 3
+                    state[13:16],    # 3
+                    rel_wp,          # 3
+                    *rel_grab,       # 6 × 3
+                    state[-2:],      # 2
                 ])
             )
-
         return np.concatenate(obs_list).astype(np.float32)
-
+    def comulative_segment_distance(self):
+        segment_distances=[]
+        payload_pos = self.data.qpos[
+                self.target_qpos_adr:self.target_qpos_adr + 3
+            ]
+        for i in range(2, 8):
+            segment_pos = self.data.xpos[getattr(self, f"segment_{i}_id")].copy()
+            segment_distances.append(np.linalg.norm(payload_pos-segment_pos)-self.RADIUS)
+        return np.linalg.norm(segment_distances)
     def _computeReward(self, action):
         total = 0.0
 
@@ -344,21 +357,15 @@ class AdaptiveTransportAviary(BaseAviary):
 
             wp = self.WAYPOINTS[wp_idx]
 
-            payload_pos = self.data.qpos[
-                self.target_qpos_adr:self.target_qpos_adr + 3
-            ]
-
-            hook_pos = self.data.xpos[self.segment_2_id].copy()
+  
 
             height_error = abs(self.pos[i][2] - wp[2])
             xy_error = np.linalg.norm(
                 self.pos[i][0:2] - wp[0:2]
             )
 
-            payload_error = np.linalg.norm(
-                payload_pos - hook_pos
-            )
-
+            payload_error = self.comulative_segment_distance()
+            
             smooth_penalty = np.linalg.norm(self.ang_v[i])
             stability_penalty = np.linalg.norm(self.rpy[i][0:2])
 
@@ -387,32 +394,35 @@ class AdaptiveTransportAviary(BaseAviary):
             # -----------------------------------------
             elif self.PAYLOAD_TERMINATION:
 
-                if wp_idx == 0:
 
-                    if reached_waypoint:
-                        total += 20.0
-                        self._advance_waypoint(i)
 
-                elif wp_idx == 1:
+                if wp_idx == 0 or wp_idx == 1:
 
                     if reached_waypoint:
                         total += 20.0
                         self._advance_waypoint(i)
 
                 elif wp_idx == 2:
-
-                    total -= payload_error
-
-                    if self.GRAB_FLAG:
-                        total += 20.0
+                
+                    if reached_waypoint:
+                        total += 0.1
+                                  
+                                    # 0.05 perfect 0.2 too much, do wee need a grab flag?
+                    if payload_error<0.1:
+                        total += 5.0
                         self._advance_waypoint(i)
+
 
                 elif wp_idx == 3:
 
+                    if payload_error<0.15:
+                        total += 3.0
                     if reached_waypoint:
-                        total += 5.0
+                                            # 5 is large
+                                            # 1 is low
+                        total += 3.0
 
-                    total -= payload_error
+                total -= 0.03 * payload_error
 
             # -----------------------------------------
             # GRAB_FLAG + nincs PAYLOAD_TERMINATION
@@ -427,18 +437,27 @@ class AdaptiveTransportAviary(BaseAviary):
 
                 elif wp_idx == 1:
 
-                    total -= payload_error
-
-                    if self.GRAB_FLAG:
-                        total += 20.0
+                   if reached_waypoint:
+                    total += 0.1
+                  
+                    # 0.05 perfect 0.2 too much, do wee need a grab flag?
+                    if payload_error<0.1:
+                        total += 5.0
                         self._advance_waypoint(i)
+
+                       
 
                 elif wp_idx == 2:
 
-                    if reached_waypoint:
-                        total += 5.0
 
-                    total -= payload_error
+                    if payload_error<0.15:
+                        total += 3.0
+                    if reached_waypoint:
+                        # 5 is large
+                        # 1 is low
+                        total += 3.0
+                
+                total -= 0.03 * payload_error
 
             # -----------------------------------------
             # Általános shaping

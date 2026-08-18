@@ -720,6 +720,11 @@ class BaseAviary(gym.Env):
 
         if self.DRONE_MODEL ==DroneModel.BB_HOOK:
             self.segment_2_id = self.model.body("segment_2").id
+            self.segment_3_id = self.model.body("segment_3").id
+            self.segment_4_id = self.model.body("segment_4").id
+            self.segment_5_id = self.model.body("segment_5").id
+            self.segment_6_id = self.model.body("segment_6").id
+            self.segment_7_id = self.model.body("segment_7").id
             
         if transport_target :
             self.target_joint_id = self.model.joint("target_joint").id
@@ -1250,11 +1255,10 @@ class BaseAviary(gym.Env):
                 rpms[i, 3] = collective_rpm + roll_cmd * 0.25 * self.MAX_RPM + pitch_cmd * 0.25 * self.MAX_RPM + yaw_rate_cmd * 0.25 * self.MAX_RPM
             return np.clip(rpms, 0, self.MAX_RPM)
         elif self.ACT_TYPE == ActionType.HOOK:
-          
-            rpms = self._normalizedActionToRPM(np.clip(np.array(action[0:4]).reshape(self.NUM_DRONES, 4), 0, self.MAX_RPM))
-            tendon_action =np.clip(np.array(action[4:]).reshape(self.NUM_DRONES, 2), -1, 1)
-
-            return np.concatenate([rpms, tendon_action], axis=1)
+            action = np.clip(action.copy(),-1,1)
+            rpms = action[0:4]
+            rpms = self._normalizedActionToRPM(rpms)
+            return rpms
         raise ValueError(f"Unknown action type: {self.ACT_TYPE}")
 
     def _normalizedActionToRPM(self, action):
