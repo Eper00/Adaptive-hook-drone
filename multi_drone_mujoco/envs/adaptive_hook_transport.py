@@ -200,6 +200,7 @@ class AdaptiveTransportAviary(BaseAviary):
         # --------------------------------------------------
         # TENDON CONTROL
         # --------------------------------------------------
+        
         if self.GRAB_FLAG_ENABLE:
 
             self._update_grab_flag()

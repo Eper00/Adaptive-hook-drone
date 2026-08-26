@@ -129,7 +129,6 @@ def _generate_aviary_xml(
 ) -> str:
     """Generate MuJoCo XML for the aviary with N drones."""
     meshdir = str(CF2_MESH_DIR)
-    tentacle_mesh = str(ASSETS_PATH)
     params = DRONE_PARAMS[drone_model]
 
     visual_meshes = "\n".join(

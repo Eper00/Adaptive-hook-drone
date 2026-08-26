@@ -34,8 +34,9 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
 
 
       
-
-       
+        self.TARGET_ORIENTATION = 0
+        self.prev_action = None
+        self.alpha = 0.1
         if initial_xyzs is None:
             initial_xyzs = np.array([[0.0, 0.0, 0.4]])
         self.controller_model = PPO.load(controller_path)
@@ -58,15 +59,27 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
 
    
     def step(self, action):
-        action=action.copy()
-        target_vel = action[0:4]
+        action = action.copy()
         
-        low_level_obs = self._get_low_level_obs(target_vel)
+        # 2. Initialize or apply the low-pass filter
+        if self.prev_action is None:
+            self.prev_action = action
+        else:
+            # Exponential moving average filter
+            action = self.alpha * action + (1.0 - self.alpha) * self.prev_action
+            self.prev_action = action.copy() # Store filtered action for the next step
+
+        # Target velocities are now smoothed, reducing upstream jiggering
+        target_vel = action[0:3]
+        
+        low_level_obs = self._get_low_level_obs(target_vel, self.TARGET_ORIENTATION)
         low_level_action, obs = self.controller_model.predict(low_level_obs, deterministic=True)
-        rpms=low_level_action[0:4]
-        tendon_actions=action[-2:]
-        obs, rewards, terminated, truncated, infos = super().step(np.hstack([rpms,tendon_actions]))
+        rpms = low_level_action[0:4]
+        tendon_actions = action[-2:]
         
+        obs, rewards, terminated, truncated, infos = super().step(np.hstack([rpms, tendon_actions]))
+        
+        # 3. Remember to clear self.prev_action = None inside your environment's reset() method!
         return obs, rewards, terminated, truncated, infos
 
 
@@ -74,7 +87,7 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
  
 
 
-    def _get_low_level_obs(self, target_vel):
+    def _get_low_level_obs(self, target_vel, target_orientation):
         state = self._getDroneStateVector(0)
 
         return np.hstack([
@@ -82,5 +95,6 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
             state[10:13],
             state[13:16],
             target_vel,
+            target_orientation,
             state[-2:],
         ]).astype(np.float32)

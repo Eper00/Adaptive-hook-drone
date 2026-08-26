@@ -34,7 +34,8 @@ class AdaptiveVelocityAviary(BaseAviary):
         self.EPISODE_LEN_SEC = 10
         
         self.EPISODE_LEN_SEC = 10
-        self.TARGET_VEL = np.array([0.0, 0.0, 0.0, 0.0])  # Will be randomized
+        self.TARGET_VEL = np.array([0.0, 0.0, 0.0])  # Will be randomized
+        self.TARGET_ORIENTATION = 0
         self.PAYLOAD_RADIUS = 0.05
         self.PAYLOAD_MASS = 0.2
         
@@ -60,12 +61,17 @@ class AdaptiveVelocityAviary(BaseAviary):
             transport_target=True
         )
     def reset(self, seed=None, options=None):
-        super().reset(seed=seed, options=options)
+        
         # Randomize target velocity
         if self.np_random is not None:
-            self.TARGET_VEL = self.np_random.uniform(-0.5, 0.5, size=4)
-            self.TARGET_VEL[3] *= 0.5  # Reduce yaw rate
-        
+            self.TARGET_VEL = self.np_random.uniform(-0.5, 0.5, size=3)
+            self.TARGET_ORIENTATION = 0
+        if not self.GRAB_FLAG_ENABLE:
+             
+            self.INIT_RPYS[0][2] = np.random.uniform(-np.pi,np.pi)
+        else:
+            self.INIT_RPYS[0][2] = 0
+        super().reset(seed=seed, options=options)
         if self.GRAB_FLAG_ENABLE:
             self.MASS=np.random.uniform(self.MIN_PAYLOAD_MASS,self.MAX_PAYLOAD_MASS)
             self.RADIUS=np.random.uniform(self.MIN_PAYLOAD_RADIUS,self.MAX_PAYLOAD_RADIUS)
@@ -174,13 +180,14 @@ class AdaptiveVelocityAviary(BaseAviary):
 
     def _computeObs(self):
         state = self._getDroneStateVector(0)
-        obs = np.hstack([state[7:10], state[10:13], state[13:16], self.TARGET_VEL, state[-2:]])
+        obs = np.hstack([state[7:10], state[10:13], state[13:16], self.TARGET_VEL,self.TARGET_ORIENTATION, state[-2:]])
         return obs.astype(np.float32)
 
     def _computeReward(self , action):
-        vel_error = np.linalg.norm(self.vel[0, :3] - self.TARGET_VEL[:3])
-        yaw_rate_error = abs(self.ang_v[0, 2] - self.TARGET_VEL[3])
-        reward = -vel_error - 0.1 * yaw_rate_error
+        vel_error = np.linalg.norm(self.vel[0, :3] - self.TARGET_VEL)
+        orientation_error = abs(self.rpy[0,2] - self.TARGET_ORIENTATION)
+       
+        reward = -vel_error - orientation_error
         # Penalize extreme attitudes
         reward -= 0.1 * (abs(self.rpy[0, 0]) + abs(self.rpy[0, 1]))
         # Bonus for tracking

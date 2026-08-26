@@ -34,16 +34,16 @@ def adjust_difficulty(env, level,level_changed=True):
                 print(f"New level: {level}")
                 env.GRAB_FLAG_ENABLE=True
                 env.MIN_PAYLOAD_MASS=0.05
-                env.MAX_PAYLOAD_MASS=0.1
+                env.MAX_PAYLOAD_MASS=0.05
                 env.MIN_PAYLOAD_RADIUS=0.02
-                env.MAX_PAYLOAD_RADIUS=0.03
+                env.MAX_PAYLOAD_RADIUS=0.025
                 env.GOAL_RANDOM_AMPLITUDE=1
                 env.PAYLOAD_TERMINATION=False
             elif level==2:
                 print(f"New level: {level}")
                 env.GRAB_FLAG_ENABLE=True
                 env.MIN_PAYLOAD_MASS=0.01
-                env.MAX_PAYLOAD_MASS=0.2
+                env.MAX_PAYLOAD_MASS=0.25
                 env.MIN_PAYLOAD_RADIUS=0.02
                 env.MAX_PAYLOAD_RADIUS=0.04
                 env.GOAL_RANDOM_AMPLITUDE=1
@@ -52,7 +52,7 @@ def adjust_difficulty(env, level,level_changed=True):
                 print(f"New level: {level}")
                 env.GRAB_FLAG_ENABLE=True
                 env.MIN_PAYLOAD_MASS=0.01
-                env.MAX_PAYLOAD_MASS=0.2
+                env.MAX_PAYLOAD_MASS=0.25
                 env.MIN_PAYLOAD_RADIUS=0.02
                 env.MAX_PAYLOAD_RADIUS=0.04
                 env.GOAL_RANDOM_AMPLITUDE=1.5
@@ -64,18 +64,19 @@ def adjust_difficulty(env, level,level_changed=True):
                
             elif level ==1:
                 print(f"New level: {level}")
+                
+                env.MIN_PAYLOAD_MASS=0.05
+                env.MAX_PAYLOAD_MASS=0.05
+                env.MIN_PAYLOAD_RADIUS=0.02
+                env.MAX_PAYLOAD_RADIUS=0.03
                 env.GRAB_FLAG_ENABLE=True
-                env.min_mass=0.05
-                env.max_mass=0.1
-                env.min_radius=0.02
-                env.max_radius=0.03
                
             elif level==2:
                 print(f"New level: {level}")
-                env.min_mass=0.01
-                env.max_mass=0.2
-                env.min_radius=0.02
-                env.max_radius=0.04
+                env.MIN_PAYLOAD_MASS=0.01
+                env.MAX_PAYLOAD_MASS=0.25
+                env.MIN_PAYLOAD_RADIUS=0.02
+                env.MAX_PAYLOAD_RADIUS=0.04
                 env.GRAB_FLAG_ENABLE=True
     
 def train_single(
