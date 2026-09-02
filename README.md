@@ -8,7 +8,7 @@ This repository is a direct extension of the [MuJoCo Drones Gym](https://github.
 
 For this reason, this document focuses exclusively on the **modifications and extensions** introduced in this repository that distinguish it from the original implementation.
 
-<img src="demo_gifs/adaptive_hook.gif" alt="Adaptive Hook Demo" width="300">
+<img src="demo_gifs/adaptive_hook.gif" alt="Adaptive Hook Demo" width="400">
 
 
 ## About the Robot
