@@ -1,6 +1,6 @@
 # Package Delivery Task Using Curriculum Reinforcement Learning with a Quadcopter-Mounted Spiral Robot Manipulator
 <p align="center">
-  <img src="demo_gif/adapitve_hook.gif" alt="Adaptive Hook Demo" width="600">
+  <img src="demo_gifs/adapitve_hook.gif" alt="Adaptive Hook Demo" width="600">
 </p>
 The purpose of this repository is to implement and investigate the control and capabilities of a spiral robot system mounted on a quadcopter. The main objective is to solve a package delivery task using **reinforcement learning (RL)** enhanced with **curriculum learning**.
 
