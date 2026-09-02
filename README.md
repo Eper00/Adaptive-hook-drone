@@ -59,6 +59,7 @@ In addition to the task progression, the payload parameters are randomized durin
 - the mass of the payload,
 - the variance of the target position distribution.
 
+
 ### `AdaptiveTransportDirectorAviary`
 
 This task is based on the same transport scenario as `AdaptiveTransportAviary`, but uses a hierarchical control architecture.
@@ -93,23 +94,37 @@ pip install -e ".[all]"   # with RL, MARL, and visualization extras
 
 ## Environments
 
-| Environment | Obs Dim | Action | Description | 
-|---|---|---|---|
-| `AdaptiveHookHover` | 13 + 2 (pos(3) + rpy(3) + vel(3) + ang_vel(3) + relaive_distance from a goal(3) + tendon_legths(2)) | 4 + 2 (normalized RPM + tendon length) | Hover at z=[0.8 2] |
-| `AdaptiveFlyThroughAviary` | 18 + 2  (pos(3) + rpy(3) + vel(3) + angvel(3) + next_waypoint(3) + rel_waypoint(3) tendon + tendon_legths(2)) | 4  + 2 (normalized RPM + tendon length) | Formation flying along a path |
-| `AdaptiveVelocityAviary` | 13 + 2 (rpy(3) + vel(3) + ang_vel(3) + targe_vel(3) + target_yaw(1) + tendon_legths(2))| 4 + 2 (normalized RPM + tendon length)  | Track velocity commands |
-| `AdaptiveTransportAviary` | 31 + 2 (pos(3)+ rpy(3) + vel(3) + ang_v(3) + rel_wp(3) + rel_grab(18) + tendon_lengths(2)) | 4 + 2 (normalized RPM + tendon length) | transport a package from a random postion to a random goal postion |
-| `AdaptiveTransportDirectorAviary` | 31 + 2 (pos(3)+ rpy(3) + vel(3) + ang_v(3) + rel_wp(3) + rel_grab(18) + tendon_lengths(2)) | 4 (velocity and a yaw orientation) | Same as `AdaptiveTransportAviary` with veklocity commands  to an `AdaptiveVelocityAviary` agent|
+| Environment | Obs Dim. | Action | Description |
+|---|---:|---|---|
+| `AdaptiveHookHover` | 17 | 4 + 2 | Hover at a randomly sampled target height. |
+| `AdaptiveFlyThroughAviary` | 23 | 4 + 2 | Navigate through a sequence of randomly sampled waypoints. |
+| `AdaptiveVelocityAviary` | 15 | 4 + 2 | Track randomly sampled velocity commands while maintaining the desired yaw orientation. |
+| `AdaptiveTransportAviary` | 35 | 4 + 2 | Transport a package from a randomly positioned location to a randomly positioned target location. |
+| `AdaptiveTransportDirectorAviary` | 35 | 4 | High-level trajectory planning using velocity commands that are passed to an `AdaptiveVelocityAviary` agent. |
+
+### Observation Space
+
+The observations are composed of the following state components:
+
+- **`AdaptiveHookHover`**: `pos(3) + rpy(3) + vel(3) + ang_vel(3) + rel_goal(3) + tendon_lengths(2)` → **17**
+- **`AdaptiveFlyThroughAviary`**: `pos(3) + rpy(3) + vel(3) + ang_vel(3) + next_waypoint(3) + rel_waypoint(3) + tendon_lengths(2)` → **20**
+- **`AdaptiveVelocityAviary`**: `rpy(3) + vel(3) + ang_vel(3) + target_vel(3) + target_yaw(1) + tendon_lengths(2)` → **15**
+- **`AdaptiveTransportAviary`**: `pos(3) + rpy(3) + vel(3) + ang_vel(3) + rel_wp(3) + rel_grab(18) + tendon_lengths(2)` → **35**
+- **`AdaptiveTransportDirectorAviary`**: `pos(3) + rpy(3) + vel(3) + ang_vel(3) + rel_wp(3) + rel_grab(18) + tendon_lengths(2)` → **35**
+
+### Action Space
+
+- **`AdaptiveHookHover`**: `normalized_RPM(4) + tendon_length(2)` → **6**
+- **`AdaptiveFlyThroughAviary`**: `normalized_RPM(4) + tendon_length(2)` → **6**
+- **`AdaptiveVelocityAviary`**: `normalized_RPM(4) + tendon_length(2)` → **6**
+- **`AdaptiveTransportAviary`**: `normalized_RPM(4) + tendon_length(2)` → **6**
+- **`AdaptiveTransportDirectorAviary`**: `velocity(3) + yaw(1) + tendon_length(2)` → **6**
 
 
-## Tasks
-`AdaptiveHookHover` taszk egy 
 
+## Project Structure<img width="425" height="363" alt="payload" src="https://github.com/user-attachments/assets/7954ee12-3b87-44f0-9cab-db471cf44dbd" />
 
-
-
-## Project Structure
-This is the same as in the original repository with the extension of the qudcopter siral robot system, and with the spicified task envriometns
+The project structure is largely the same as in the original repository, with the addition of the **quadcopter-mounted spiral robot system** and the specifically implemented task environments.
 ```
 multi_drone_mujoco/
 ├── envs/
