@@ -1,21 +1,78 @@
 # MJ-drones-gym
 
-**MuJoCo-based multi-drone Gymnasium environments for single and multi-agent reinforcement learning of quadcopter control.**
+# Package Delivery Task Using Curriculum Reinforcement Learning with a Quadcopter-Mounted Spiral Robot Manipulator
 
-High-fidelity quadcopter simulation with GPU-vectorized environments, Dryden wind turbulence, domain randomization, obstacle generation, and curriculum learning — all built on [MuJoCo](https://mujoco.org/).
+The purpose of this repository is to implement and investigate the control and capabilities of a spiral robot system mounted on a quadcopter. The main objective is to solve a package delivery task using **reinforcement learning (RL)** enhanced with **curriculum learning**.
 
-## Features
+This repository is a direct extension of the [MuJoCo Drones Gym](https://github.com/tau-intelligence/MuJoCo-drones-gym) repository. Therefore, it contains the same environments, task definitions, and utilities as the original repository.
 
-- **MuJoCo physics** — faster and more accurate than PyBullet
-- **Gymnasium API** — drop-in compatible with stable-baselines3, CleanRL, etc.
-- **Multi-drone support** — N arbitrary drones with inter-drone effects
-- **Aerodynamic effects** — ground effect, drag, downwash (individually toggleable)
-- **Multiple action types** — RPM, normalized thrust, velocity, PID waypoint
-- **Multiple observation types** — kinematics (state vector), RGB camera
-- **PID controllers** — tuned cascaded position/attitude PID (PIDControl + DSLPIDControl)
-- **PettingZoo multi-agent** — parallel environment wrapper for MARL
-- **7 task environments** — hover, velocity tracking, waypoint navigation, formation, racing, and more
-- **SB3 examples** — ready-to-run PPO training scripts
+For this reason, this document focuses exclusively on the **modifications and extensions** introduced in this repository that distinguish it from the original implementation.
+
+## About the Robot
+
+The robot was inspired by the concept of **spiral robots** presented in [10.1016/j.device.2024.100646](https://doi.org/10.1016/j.device.2024.100646). In this implementation, a simplified **two-dimensional version** of the spiral robot is simulated, without modeling the elastic layer.
+
+The manipulator is mounted underneath a **quadcopter based on the Bumblebee platform**.
+
+<img width="448" height="371" alt="Spiral robot mounted on a Bumblebee-based quadcopter" src="https://github.com/user-attachments/assets/e4fc6bdb-dcc9-4428-8ef3-187085eff6bc"/>
+
+## About the Tasks
+
+Five different tasks were implemented, with **curriculum learning** applied where appropriate.
+
+### `AdaptiveHookHover`
+
+The agent starts from the initial position `(0, 0, 0.2)` and has to take off and stabilize at a randomly sampled target position of the form `(0, 0, z)`, where `z` is uniformly sampled from `[0.8, 2.0]`. During the task, the spiral robot manipulator performs random actions.
+
+**Curriculum:** Initially, the agent only has to learn how to stabilize at the target position. Once this has been successfully learned, random actions are introduced on the manipulator, requiring the agent to maintain stability despite the disturbances caused by the manipulator.
+
+### `AdaptiveFlyThroughAviary`
+
+The agent has to navigate through `N` randomly sampled waypoints starting from the initial position. The waypoint coordinates are sampled uniformly from the following ranges:
+
+- `x ∈ [-1, 1]`
+- `y ∈ [-1, 1]`
+- `z ∈ [0.4, 0.8]`
+
+**Curriculum:** No curriculum learning is applied. This task primarily serves as a control environment to verify that the agent is capable of learning waypoint navigation.
+
+### `AdaptiveVelocityAviary`
+
+The agent has to track a randomly sampled velocity reference while maintaining a yaw orientation of `0` radians. The reference velocity is given by `(v_x, v_y, v_z)`, with:
+
+- `v_x ∈ [-0.5, 0.5]`
+- `v_y ∈ [-0.5, 0.5]`
+- `v_z ∈ [-0.5, 0.5]`
+
+**Curriculum:** Once the agent is able to reliably track the reference velocity, it is trained on scenarios in which a physical drone-payload connection is established. The agent must then continue to track the reference velocity while carrying the payload.
+
+### `AdaptiveTransportAviary`
+
+The agent has to navigate to a randomly positioned payload and transport it to a randomly positioned target location.
+
+**Curriculum:** Initially, the agent only has to navigate through the required waypoints without interacting with the payload. Once this behavior has been learned, the agent must navigate to the waypoints while establishing physical contact with the payload and subsequently transport it to the final destination.
+
+In addition to the task progression, the payload parameters are randomized during training, including:
+
+- the radius of the cylindrical payload,
+- the height of the cylindrical payload,
+- the mass of the payload,
+- the variance of the target position distribution.
+
+### `AdaptiveTransportDirectorAviary`
+
+This task is based on the same transport scenario as `AdaptiveTransportAviary`, but uses a hierarchical control architecture.
+
+Instead of directly controlling the drone, the `AdaptiveTransportDirectorAviary` agent outputs a **velocity reference vector**, which is passed to a previously trained `AdaptiveVelocityAviary` agent.
+
+In this setup:
+
+- `AdaptiveTransportDirectorAviary` acts as a **high-level trajectory planner**.
+- `AdaptiveVelocityAviary` acts as a **low-level controller**, responsible for tracking the velocity reference generated by the high-level agent.
+
+This hierarchical architecture separates trajectory planning from low-level velocity control, allowing the two agents to focus on different levels of the control problem.
+
+
 
 ## Installation
 
@@ -32,99 +89,34 @@ pip install -e ".[all]"   # with RL, MARL, and visualization extras
 - Gymnasium ≥ 0.29
 - NumPy ≥ 1.21
 
-## Quick Start
 
-### PID Control
-
-```python
-import numpy as np
-from multi_drone_mujoco.envs.base_aviary import BaseAviary
-from multi_drone_mujoco.control.pid_control import PIDControl
-from multi_drone_mujoco.utils.enums import Physics
-
-env = BaseAviary(num_drones=1, ctrl_freq=240, sim_freq=240, physics=Physics.MJC)
-ctrl = PIDControl(env)
-env.reset()
-
-target = np.array([0.5, 0.3, 1.0])
-for _ in range(4800):
-    rpm, _, _ = ctrl.computeControl(
-        env.CTRL_TIMESTEP, env.pos[0], env.quat[0],
-        env.vel[0], env.ang_v[0], target
-    )
-    env.step(rpm.flatten())
-
-print(f"Final position error: {np.linalg.norm(env.pos[0] - target):.4f} m")
-env.close()
-```
-
-### Reinforcement Learning (SB3 PPO)
-
-```python
-from stable_baselines3 import PPO
-from multi_drone_mujoco.envs.hover_aviary import HoverAviary
-
-env = HoverAviary(ctrl_freq=48)
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=500_000)
-model.save("hover_ppo")
-```
-
-### Multi-Agent RL (PettingZoo)
-
-```python
-from multi_drone_mujoco.envs.multi_agent_aviary import MultiAgentAviary
-
-env = MultiAgentAviary(num_drones=3)
-env.reset()
-actions = {agent: env.action_space(agent).sample() for agent in env.agents}
-obs, rewards, terms, truncs, infos = env.step(actions)
-```
-
-## Examples
-
-```bash
-cd multi_drone_mujoco/examples/
-python pid.py          # PID hover + velocity tracking + multi-drone
-python downwash.py     # downwash effect demonstration
-python learn.py        # SB3 PPO training (single + multi hover)
-python play.py         # visualize trained policy
-```
 
 ## Environments
 
-| Environment | Obs Dim | Action | Description |
+| Environment | Obs Dim | Action | Description | 
 |---|---|---|---|
-| `HoverAviary` | 12 | 4 (normalized RPM) | Hover at z=1.0 |
-| `VelocityAviary` | 16 | 4 (normalized RPM) | Track velocity commands |
-| `MultiHoverAviary` | 13×N | 4×N | N drones at different heights |
-| `FlyThroughAviary` | 18 | 4 | Navigate through waypoints |
-| `FormationAviary` | 18×N | 4×N | Formation flying along a path |
-| `RaceAviary` | 21 | 4 | Gate racing with lap timing |
-| `MultiAgentAviary` | per-agent | per-agent | PettingZoo parallel wrapper |
+| `AdaptiveHookHover` | 13 + 2 (pos(3) + rpy(3) + vel(3) + ang_vel(3) + relaive_distance from a goal(3) + tendon_legths(2)) | 4 + 2 (normalized RPM + tendon length) | Hover at z=[0.8 2] |
+| `AdaptiveFlyThroughAviary` | 18 + 2  (pos(3) + rpy(3) + vel(3) + angvel(3) + next_waypoint(3) + rel_waypoint(3) tendon + tendon_legths(2)) | 4  + 2 (normalized RPM + tendon length) | Formation flying along a path |
+| `AdaptiveVelocityAviary` | 13 + 2 (rpy(3) + vel(3) + ang_vel(3) + targe_vel(3) + target_yaw(1) + tendon_legths(2))| 4 + 2 (normalized RPM + tendon length)  | Track velocity commands |
+| `AdaptiveTransportAviary` | 31 + 2 (pos(3)+ rpy(3) + vel(3) + ang_v(3) + rel_wp(3) + rel_grab(18) + tendon_lengths(2)) | 4 + 2 (normalized RPM + tendon length) | transport a package from a random postion to a random goal postion |
+| `AdaptiveTransportDirectorAviary` | 31 + 2 (pos(3)+ rpy(3) + vel(3) + ang_v(3) + rel_wp(3) + rel_grab(18) + tendon_lengths(2)) | 4 (velocity and a yaw orientation) | Same as `AdaptiveTransportAviary` with veklocity commands  to an `AdaptiveVelocityAviary` agent|
 
-## Physics Modes
 
-| Mode | Description |
-|---|---|
-| `Physics.MJC` | Pure MuJoCo (force injection via xfrc_applied) |
-| `Physics.DYN` | Explicit dynamics (Euler integration) |
-| `Physics.MJC_GND` | MuJoCo + ground effect |
-| `Physics.MJC_DRAG` | MuJoCo + aerodynamic drag |
-| `Physics.MJC_DW` | MuJoCo + downwash |
-| `Physics.MJC_GND_DRAG_DW` | MuJoCo + all aerodynamic effects |
+## Tasks
+`AdaptiveHookHover` taszk egy 
 
-## Tests
 
-```bash
-pytest multi_drone_mujoco/tests/ -v
-```
+
 
 ## Project Structure
-
+This is the same as in the original repository with the extension of the qudcopter siral robot system, and with the spicified task envriometns
 ```
 multi_drone_mujoco/
 ├── envs/
+│   ├── adaptive_hook_hover.py    
+│   ├── adaptive_hook_fly_thorugh.py
+│   ├── adaptive_hook_velocity.py 
+│   ├── adaptive_hook_director_velocity.py 
 │   ├── base_aviary.py          # Core physics engine + Gymnasium env
 │   ├── hover_aviary.py         # Single-drone hover task
 │   ├── velocity_aviary.py      # Velocity tracking task
@@ -151,38 +143,3 @@ multi_drone_mujoco/
 └── setup.py
 ```
 
-## Differences from gym-pybullet-drones
-
-| | gym-pybullet-drones | gym-mujoco-drones |
-|---|---|---|
-| Physics | PyBullet | MuJoCo (faster, more accurate) |
-| Rendering | PyBullet GUI | MuJoCo viewer / offscreen RGB |
-| Firmware SITL | Betaflight, CF firmware | — |
-| Task environments | 2 (Hover, MultiHover) | 7 (+ velocity, waypoint, formation, race) |
-| Multi-agent | Custom | PettingZoo standard |
-
-## Citation
-
-If you use this work, please cite:
-
-```bibtex
-@misc{tayal2026mujocodronesgym,
-  title={MuJoCo-Drones-Gym: A GPU-Accelerated Multi-Drone Simulator for Control and Reinforcement Learning}, 
-      author={Manan Tayal},
-      year={2026},
-      eprint={2606.08039},
-      archivePrefix={arXiv},
-      primaryClass={cs.RO},
-      url={https://arxiv.org/abs/2606.08039}, 
-}
-```
-
-## Acknowledgements
-
-- [gym-pybullet-drones](https://github.com/learnsyslab/gym-pybullet-drones) — inspiration for the environment API and task design
-- [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) — Bitcraze Crazyflie 2.x MJCF model
-- [Bitcraze](https://www.bitcraze.io/) — Crazyflie 2.x hardware platform and firmware parameters
-
-## License
-
-MIT
