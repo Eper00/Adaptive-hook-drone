@@ -58,7 +58,7 @@ In addition to the task progression, the payload parameters are randomized durin
 - the height of the cylindrical payload,
 - the mass of the payload,
 - the variance of the target position distribution.
-
+<img width="425" height="363" alt="payload" src="https://github.com/user-attachments/assets/7954ee12-3b87-44f0-9cab-db471cf44dbd" />
 
 ### `AdaptiveTransportDirectorAviary`
 
@@ -122,7 +122,7 @@ The observations are composed of the following state components:
 
 
 
-## Project Structure<img width="425" height="363" alt="payload" src="https://github.com/user-attachments/assets/7954ee12-3b87-44f0-9cab-db471cf44dbd" />
+## Project Structure
 
 The project structure is largely the same as in the original repository, with the addition of the **quadcopter-mounted spiral robot system** and the specifically implemented task environments.
 ```
