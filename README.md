@@ -1,12 +1,15 @@
 # Package Delivery Task Using Curriculum Reinforcement Learning with a Quadcopter-Mounted Spiral Robot Manipulator
 
-<img src="demo_gifs/adaptive_hook.gif" alt="Adaptive Hook Demo" width="400">
+
 
 The purpose of this repository is to implement and investigate the control and capabilities of a spiral robot system mounted on a quadcopter. The main objective is to solve a package delivery task using **reinforcement learning (RL)** enhanced with **curriculum learning**.
 
 This repository is a direct extension of the [MuJoCo Drones Gym](https://github.com/tau-intelligence/MuJoCo-drones-gym) repository. Therefore, it contains the same environments, task definitions, and utilities as the original repository.
 
 For this reason, this document focuses exclusively on the **modifications and extensions** introduced in this repository that distinguish it from the original implementation.
+
+<img src="demo_gifs/adaptive_hook.gif" alt="Adaptive Hook Demo" width="300">
+
 
 ## About the Robot
 
