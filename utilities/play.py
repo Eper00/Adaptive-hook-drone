@@ -49,6 +49,9 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         env= AdaptiveTransportDirectorAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
     success=0
     failed=0
+    failed_stability = 0
+    failed_incomplete = 0
+    failed_paylaod = 0
     for ep in range(episodes):
         
         total_reward = 0
@@ -106,7 +109,8 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                 
                
             elif env_type=="adaptive_director":
-                env.render_mode = None
+                env.render_mode=None
+                
             env.render()
             
             obs, reward, terminated, truncated, info = env.step(action)
@@ -118,10 +122,31 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
             terminated = True
             truncated = False
         if terminated:
+            if env.current_waypoint_idx != len(env.WAYPOINTS)-1:
+                failed_incomplete += 1
+            if (
+                abs(env.rpy[0, 0]) > np.pi / 2
+                or abs(env.rpy[0, 1]) > np.pi / 2
+            ):
+                failed_stability += 1
+            payload_pos = env.data.qpos[
+                    env.target_qpos_adr:env.target_qpos_adr + 3
+                ]
+
+            hook_pos = env.data.xpos[env.segment_2_id].copy()
+
+            payload_error = np.linalg.norm(
+                    payload_pos - hook_pos
+                )
+
+            if (env.current_waypoint_idx[0]== len(env.WAYPOINTS) - 1 and payload_error > 0.2):
+                failed_paylaod += 1
             failed += 1
+            
         if truncated:
             success += 1
-            
+        if env_type =="adaptive_director":
+            print(f"Failed stab: {failed_stability}, failed incomplete {failed_incomplete}, failed payload {failed_paylaod}")
         print(f"Success: {success}, Failed: {failed}, Ratio: {success/(success+failed) if (success+failed)>0 else 0}")
         print(f"  Episode {ep + 1}: reward={total_reward:.2f}, steps={steps}")
 
