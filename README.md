@@ -75,21 +75,6 @@ This hierarchical architecture separates trajectory planning from low-level velo
 
 
 
-## Installation
-
-```bash
-git clone <this-repo>
-cd multi_drone_mujoco/
-pip install -e .          # core
-pip install -e ".[all]"   # with RL, MARL, and visualization extras
-```
-
-### Requirements
-- Python ≥ 3.8
-- MuJoCo ≥ 3.0
-- Gymnasium ≥ 0.29
-- NumPy ≥ 1.21
-
 
 
 ## Environments
@@ -100,7 +85,7 @@ pip install -e ".[all]"   # with RL, MARL, and visualization extras
 | `AdaptiveFlyThroughAviary` | 23 | 4 + 2 | Navigate through a sequence of randomly sampled waypoints. |
 | `AdaptiveVelocityAviary` | 15 | 4 + 2 | Track randomly sampled velocity commands while maintaining the desired yaw orientation. |
 | `AdaptiveTransportAviary` | 35 | 4 + 2 | Transport a package from a randomly positioned location to a randomly positioned target location. |
-| `AdaptiveTransportDirectorAviary` | 35 | 4 | High-level trajectory planning using velocity commands that are passed to an `AdaptiveVelocityAviary` agent. |
+| `AdaptiveTransportDirectorAviary` | 35 | 4 + 2  | High-level trajectory planning using velocity commands that are passed to an `AdaptiveVelocityAviary` agent. |
 
 ### Observation Space
 
@@ -121,7 +106,34 @@ The observations are composed of the following state components:
 - **`AdaptiveTransportDirectorAviary`**: `velocity(3) + yaw(1) + tendon_length(2)` → **6**
 
 
+## Installation
 
+```bash
+git clone <this-repo>
+cd multi_drone_mujoco/
+pip install -e .          # core
+pip install -e ".[all]"   # with RL, MARL, and visualization extras
+```
+
+## Requirements
+- Python ≥ 3.8
+- MuJoCo ≥ 3.0
+- Gymnasium ≥ 0.29
+- NumPy ≥ 1.21
+
+## Usage
+
+The main function for testing the learned algorithm is the `play` function located in `utilities/play.py`.
+
+For example:
+
+```bash
+python3 utilities/play.py \
+    --model_path=/home/tomi/Adaptive-hook-drone/results/final/rl_adaptive_director_curriculum/final_model.zip \
+    --env_type adaptive_director \
+    --episode 10 \
+    --curriculum_flag True
+```
 ## Project Structure
 
 The project structure is largely the same as in the original repository, with the addition of the **quadcopter-mounted spiral robot system** and the specifically implemented task environments.
