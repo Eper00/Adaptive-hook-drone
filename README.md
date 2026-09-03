@@ -132,7 +132,7 @@ For example:
 
 ```bash
 python3 utilities/play.py \
-    --model_path=./Adaptive-hook-drone/results/final/rl_adaptive_director_curriculum/final_model.zip \
+    --model_path=./Adaptive-hook-drone/final/rl_adaptive_director_curriculum/final_model.zip \
     --env_type adaptive_director \
     --episode 10 \
     --curriculum_flag True
