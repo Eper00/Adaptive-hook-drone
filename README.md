@@ -1,4 +1,4 @@
-# Package Delivery Task Using Curriculum Reinforcement Learning with a Quadcopter-Mounted Spiral Robot Manipulator
+## Package Transportation Using Curriculum Reinforcement Learning with a Quadcopter-Mounted Spiral Robot Manipulator
 
 
 
