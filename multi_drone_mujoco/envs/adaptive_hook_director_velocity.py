@@ -27,7 +27,7 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
         record = False,
         waypoints = None,
         waypoint_radius = 0.1,
-        controller_path = "/home/tomi/Adaptive-hook-drone/results/rl_adaptive_velocity_curriculum/final_model.zip",
+        controller_path = "/home/tomi/Adaptive-hook-drone/results/final/rl_adaptive_velocity_curriculum/final_model.zip",
         initial_xyzs = None,
         render_mode = None,
     ):
@@ -84,7 +84,10 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
 
 
 
- 
+    def _computeReward(self, action):
+        total = super()._computeReward(action)
+        velocity_penalty = 0.25 * np.sum(np.square(action[0:3]))
+        return total - velocity_penalty
 
 
     def _get_low_level_obs(self, target_vel, target_orientation):
