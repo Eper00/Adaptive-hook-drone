@@ -7,99 +7,8 @@ Usage:
 import argparse
 import numpy as np
 import time
-import matplotlib.pyplot as plt
-
-import numpy as np
-import matplotlib.pyplot as plt
 
 
-def plot_position_and_velocity(
-    positions,
-    velocity_vectors,
-    velocity_scale=0.05,
-):
-    """
-    3D-ben plotolja a drón pozícióját és a kiadott velocity commandokat.
-
-    Parameters
-    ----------
-    positions : list or np.ndarray
-        A drón pozíciói, shape: (N, 3)
-
-    velocity_vectors : list or np.ndarray
-        A kiadott velocity commandok, shape: (N, 3)
-
-    velocity_scale : float
-        A velocity vektorok vizuális skálázása.
-    """
-
-    positions = np.asarray(positions)
-    velocity_vectors = np.asarray(velocity_vectors)
-
-    fig = plt.figure(figsize=(12, 9))
-    ax = fig.add_subplot(111, projection="3d")
-
-    # ---------------------------------------------------------
-    # 1. Trajektória
-    # ---------------------------------------------------------
-    ax.plot(
-        positions[:, 0],
-        positions[:, 1],
-        positions[:, 2],
-        linewidth=2,
-        label="Drone trajectory",
-    )
-
-    # ---------------------------------------------------------
-    # 2. Velocity commandok
-    # ---------------------------------------------------------
-    ax.quiver(
-        positions[:, 0],
-        positions[:, 1],
-        positions[:, 2],
-        velocity_vectors[:, 0],
-        velocity_vectors[:, 1],
-        velocity_vectors[:, 2],
-        length=velocity_scale,
-        normalize=False,
-        arrow_length_ratio=0.2,
-        alpha=0.7,
-        label="Velocity command",
-    )
-
-    # ---------------------------------------------------------
-    # 3. Kezdő és végpont
-    # ---------------------------------------------------------
-    ax.scatter(
-        positions[0, 0],
-        positions[0, 1],
-        positions[0, 2],
-        s=80,
-        label="Start",
-    )
-
-    ax.scatter(
-        positions[-1, 0],
-        positions[-1, 1],
-        positions[-1, 2],
-        s=80,
-        label="End",
-    )
-
-    # ---------------------------------------------------------
-    # 4. Tengelyek
-    # ---------------------------------------------------------
-    ax.set_xlabel("X [m]")
-    ax.set_ylabel("Y [m]")
-    ax.set_zlabel("Z [m]")
-
-    ax.set_title("Drone Trajectory and Velocity Commands")
-
-    ax.legend()
-    ax.grid(True)
-
-    plt.tight_layout()
-    plt.show()
 
 
 def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum_flag: bool =False):
@@ -146,8 +55,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     failed_stability = 0
     failed_incomplete = 0
     failed_payload = 0
-    velocity_vectors = []
-    positions = []
+
     for ep in range(episodes):
         
         total_reward = 0
@@ -179,39 +87,30 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
             
             action, _ = model.predict(obs, deterministic=True)
             if env_type == "adaptive_hook_hover":
-               print((env.TARGET_HEIGHT,env.pos[0][2]))
-               time.sleep(0.01)
+               time.sleep(0.005)
             elif env_type == "fly_through":
-                if np.linalg.norm(env.TARGET_POSTION-env.pos[0])<0.1:
-                    print("ok: TARGET")
-                if np.linalg.norm(env.GOAL_POSTION-env.pos[0])<0.1:
-                    print("ok: GOAL")
-                time.sleep(0.01)
+   
+                time.sleep(0.005)
             elif env_type == "adaptive_fly_through":
-                if np.linalg.norm(env.TARGET_POSTION-env.pos[0])<0.1:
-                    print("ok: TARGET")
-                if np.linalg.norm(env.GOAL_POSTION-env.pos[0])<0.1:
-                    print("ok: GOAL")
-                time.sleep(0.01)
+
+                time.sleep(0.005)
             elif env_type == "adaptive_transport":
                 
                
-                time.sleep(0.01)
+                time.sleep(0.005)
             elif env_type == "velocity_aviary":
 
-                env.TARGET_VELOCITY = np.array([0.0, 0.0, 0.0])
+             
                
                 time.sleep(0.005)
             elif env_type == "adaptive_velocity":
                 
                 
-                time.sleep(0.001)
+                time.sleep(0.005)
                
             elif env_type=="adaptive_director":
-                #time.sleep(0.01)
-                positions.append(env.pos[0].copy())
-                velocity_vectors.append(action[0:3].copy())
-                env.render_mode = None   
+                time.sleep(0.001)
+               
             env.render()
             
             obs, reward, terminated, truncated, info = env.step(action)
@@ -252,9 +151,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
             print(f"Success: {success}, Failed: {failed}, Ratio: {success/(success+failed) if (success+failed)>0 else 0}")
             print(f"  Episode {ep + 1}: reward={total_reward:.2f}, steps={steps}")
         
-            #plot_position_and_velocity(positions, velocity_vectors)
-            velocity_vectors = []
-            positions = []
+
     env.close()
     
 if __name__ == "__main__":
