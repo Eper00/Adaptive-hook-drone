@@ -222,7 +222,6 @@ class AdaptiveTransportAviary(BaseAviary):
                     # [-1, 1] -> [0, 1]
                     # --------------------------------------
                     magnitude = 0.5 * (action[4] + 1.0)
-
                     # --------------------------------------
                     # Direction is given by geometry
                     # --------------------------------------

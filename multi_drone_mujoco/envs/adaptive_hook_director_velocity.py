@@ -76,7 +76,6 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
         low_level_action, obs = self.controller_model.predict(low_level_obs, deterministic=True)
         rpms = low_level_action[0:4]
         tendon_actions = action[-2:]
-        
         obs, rewards, terminated, truncated, infos = super().step(np.hstack([rpms, tendon_actions]))
         
         # 3. Remember to clear self.prev_action = None inside your environment's reset() method!
