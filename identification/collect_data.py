@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
-
+import time
 
 def collect_data(episodes: int):
 
@@ -22,7 +22,7 @@ def collect_data(episodes: int):
     env = AdaptiveVelocityAviary(
         ctrl_freq=48,
         sim_freq=240,
-        render_mode="human"
+        render_mode=None
     )
     env.EPISODE_LEN_SEC=10
 
@@ -43,7 +43,7 @@ def collect_data(episodes: int):
         env.MAX_PAYLOAD_MASS = 0.25
         env.MIN_PAYLOAD_RADIUS = 0.02
         env.MAX_PAYLOAD_RADIUS = 0.04
-
+        env.RANDOM_OREINTATION = True
         # Randomly enable/disable payload grabbing
         env.GRAB_FLAG_ENABLE = True
 
@@ -60,11 +60,9 @@ def collect_data(episodes: int):
         truncated = False
 
         while not terminated and not truncated:
-            time.sleep(0.001)
             # -------------------------------------------------
             # Change target velocity
             # -------------------------------------------------
-
             if steps % 50 == 0:
               
                 p = np.random.uniform(0,1)
@@ -93,8 +91,8 @@ def collect_data(episodes: int):
 
             target_velocity = env.TARGET_VEL.copy()
 
-           
 
+           
            
 
             
@@ -128,7 +126,18 @@ def collect_data(episodes: int):
             obs, reward, terminated, truncated, info = env.step(
                 action
             )
-
+            if env.PAYLOAD_INDICATOR<0.5:
+                            payload_pos = env.data.qpos[
+                                            env.target_qpos_adr:env.target_qpos_adr + 3
+                                        ]
+                        
+                            hook_pos = env.data.xpos[env.segment_2_id].copy()
+                        
+                            payload_error = np.linalg.norm(
+                                            payload_pos - hook_pos
+                                        )
+                            if payload_error >0.2:
+                                terminated=True
             # -------------------------------------------------
             # Next velocity
             # -------------------------------------------------
@@ -159,6 +168,7 @@ def collect_data(episodes: int):
                 f"Episode {ep + 1}/{episodes}: "
                 f"TERMINATED -> discarded "
                 f"({steps} samples)"
+               
             )
 
         else:
@@ -170,6 +180,7 @@ def collect_data(episodes: int):
             print(
                 f"Episode {ep + 1}/{episodes}: "
                 f"accepted ({steps} samples)"
+
             )
 
     env.close()
