@@ -30,11 +30,9 @@ class AdaptiveVelocityAviary(BaseAviary):
         self.MIN_PAYLOAD_RADIUS = 0.02
         self.MAX_PAYLOAD_RADIUS = 0.04
         
-        self.GOAL_RANDOM_AMPLITUDE = 1.0
-        self.EPISODE_LEN_SEC = 10
         
-        self.EPISODE_LEN_SEC = 10
-        self.TARGET_VEL = np.array([0.0, 0.0, 0.0])  # Will be randomized
+        self.EPISODE_LEN_SEC = 4
+        self.TARGET_VEL = np.array([0.0, 0.0, 0.0])  
         self.TARGET_ORIENTATION = 0
         self.PAYLOAD_RADIUS = 0.05
         self.PAYLOAD_MASS = 0.2
@@ -42,9 +40,11 @@ class AdaptiveVelocityAviary(BaseAviary):
         self.GRAB_FLAG = False
         self.GRAB_FLAG_ENABLE = False
         self.tendon_orientation=0
+        self.PAYLOAD_INDICATOR=None
         self.GRAB_FLAG_ENABLE=False
+        self.RANDOM_OREINTATION = False
         if initial_xyzs is None:
-            initial_xyzs = np.array([[0.0, 0.0, 10.8]])
+            initial_xyzs = np.array([[0.0, 0.0, 12.8]])
 
         super().__init__(
             drone_model=drone_model,
@@ -63,20 +63,43 @@ class AdaptiveVelocityAviary(BaseAviary):
     def reset(self, seed=None, options=None):
         
         # Randomize target velocity
+
+
+
+        super().reset(seed=seed, options=options)
+        self.steps=0
         if self.np_random is not None:
-            self.TARGET_VEL = self.np_random.uniform(-0.5, 0.5, size=3)
+            p = self.np_random.random()
+
+            if p < 0.4:
+                # Hover / kis sebesség
+                self.TARGET_VEL = self.np_random.uniform(-0.1, 0.1, size=3)
+
+            elif p < 0.7:
+                # Közepes sebesség
+                self.TARGET_VEL = self.np_random.uniform(-0.5, 0.5, size=3)
+
+            else:
+                # Teljes tartomány
+                self.TARGET_VEL = self.np_random.uniform(-1.0, 1.0, size=3)
             self.TARGET_ORIENTATION = 0
-        if not self.GRAB_FLAG_ENABLE:
+        if self.RANDOM_OREINTATION:
              
-            self.INIT_RPYS[0][2] = np.random.uniform(-np.pi,np.pi)
+            self.INIT_RPYS[0][2] = self.np_random.uniform(-np.pi,np.pi)
         else:
             self.INIT_RPYS[0][2] = 0
-        super().reset(seed=seed, options=options)
+        
+
         if self.GRAB_FLAG_ENABLE:
-            self.MASS=np.random.uniform(self.MIN_PAYLOAD_MASS,self.MAX_PAYLOAD_MASS)
-            self.RADIUS=np.random.uniform(self.MIN_PAYLOAD_RADIUS,self.MAX_PAYLOAD_RADIUS)
+            self.PAYLOAD_INDICATOR=self.np_random.uniform(0,1)
+        else:
+            self.PAYLOAD_INDICATOR=1
+
+        if self.PAYLOAD_INDICATOR<0.5:
+            self.MASS=self.np_random.uniform(self.MIN_PAYLOAD_MASS,self.MAX_PAYLOAD_MASS)
+            self.RADIUS=self.np_random.uniform(self.MIN_PAYLOAD_RADIUS,self.MAX_PAYLOAD_RADIUS)
             hook_pos = self.data.xpos[self.segment_2_id].copy()
-            offset=np.random.choice([-0.001, 0.001])
+            offset=self.np_random.choice([-0.001, 0.001])
             self.data.qpos[
                         self.target_qpos_adr:self.target_qpos_adr+3
             ] = [hook_pos[0]+offset,hook_pos[1],hook_pos[2]]
@@ -89,7 +112,7 @@ class AdaptiveVelocityAviary(BaseAviary):
                         0
                     ]
 
-            random_z=np.random.uniform(0.45-0.2,0.8-0.2)
+            random_z=self.np_random.uniform(0.45-0.2,0.8-0.2)
             self.model.body_pos[self.holder_body_id][2] = -random_z
             
             
@@ -148,9 +171,10 @@ class AdaptiveVelocityAviary(BaseAviary):
         return self._computeObs(), self._computeInfo()
         
     def step(self, action):
+        self.steps+=1
         action=action.copy()
-       
-        if self.GRAB_FLAG_ENABLE:
+
+        if self.PAYLOAD_INDICATOR<0.5:
             if self.tendon_orientation==1:
                 action[4] = 1
                 action[5] = -1
@@ -163,7 +187,27 @@ class AdaptiveVelocityAviary(BaseAviary):
         obs, reward, terminated, truncated, info = super().step(action)
         return obs, reward, terminated, truncated, info
     def _actionSpace(self):
-        return spaces.Box(low=-np.ones(6, dtype=np.float32), high=np.ones(6, dtype=np.float32))
+           velocity_action_low = np.full(3, -1, dtype=np.float32)
+           velocity_action_up = np.full(3, 1, dtype=np.float32)
+   
+           orientation_low = np.full(1, -np.pi, dtype=np.float32)
+           orientation_up = np.full(1, np.pi, dtype=np.float32)
+   
+           tendon_action_low = np.full(2, -1, dtype=np.float32)
+           tendon_action_up = np.full(2, 1, dtype=np.float32)
+   
+           return spaces.Box(
+               low=np.hstack([
+                   velocity_action_low,
+                   orientation_low,
+                   tendon_action_low
+               ]),
+               high=np.hstack([
+                   velocity_action_up,
+                   orientation_up,
+                   tendon_action_up
+               ]),
+           )
     
     def _observationSpace(self):
         obs_lower_pos = np.full(13, -np.inf)
@@ -191,8 +235,9 @@ class AdaptiveVelocityAviary(BaseAviary):
         # Penalize extreme attitudes
         reward -= 0.1 * (abs(self.rpy[0, 0]) + abs(self.rpy[0, 1]))
         # Bonus for tracking
-        if vel_error < 0.05:
+        if vel_error < 0.025:
             reward += 0.5
+  
             
         if self._computeTerminated():
             reward -= 100.0

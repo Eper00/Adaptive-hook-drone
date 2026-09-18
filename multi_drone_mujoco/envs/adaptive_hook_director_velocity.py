@@ -82,6 +82,28 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
         return obs, rewards, terminated, truncated, infos
 
 
+    def _actionSpace(self):
+        velocity_action_low = np.full(3, -1, dtype=np.float32)
+        velocity_action_up = np.full(3, 1, dtype=np.float32)
+
+        orientation_low = np.full(1, -np.pi, dtype=np.float32)
+        orientation_up = np.full(1, np.pi, dtype=np.float32)
+
+        tendon_action_low = np.full(2, -1, dtype=np.float32)
+        tendon_action_up = np.full(2, 1, dtype=np.float32)
+
+        return spaces.Box(
+            low=np.hstack([
+                velocity_action_low,
+                orientation_low,
+                tendon_action_low
+            ]),
+            high=np.hstack([
+                velocity_action_up,
+                orientation_up,
+                tendon_action_up
+            ]),
+        )
 
     def _computeReward(self, action):
         total = super()._computeReward(action)

@@ -87,14 +87,14 @@ class AdaptiveTransportAviary(BaseAviary):
         self.GRAB_FLAG = False
         
         if self.PAYLOAD_TERMINATION:
-            self.INIT_RPYS[0][2] = np.random.uniform(-np.pi,np.pi)
+            self.INIT_RPYS[0][2] = self.np_random.uniform(-np.pi,np.pi)
         super().reset(seed=seed, options=options)
        
         self.current_waypoint_idx[:] = 0
        
         while True:
-            x = np.random.uniform(-1, 1)
-            y = np.random.uniform(-1, 1)
+            x = self.np_random.uniform(-1, 1)
+            y = self.np_random.uniform(-1, 1)
 
             if abs(x) > 0.2 or abs(y) > 0.2:
                 break
@@ -102,15 +102,15 @@ class AdaptiveTransportAviary(BaseAviary):
         self.TARGET_POSITION = np.array([
             x,
             y,
-            np.random.uniform(0.45, 0.8),
+            self.np_random.uniform(0.45, 0.8),
         ])
 
         self.GOAL_POSITION = np.array([
-            np.random.uniform(
+            self.np_random.uniform(
                 -self.GOAL_RANDOM_AMPLITUDE,
                 self.GOAL_RANDOM_AMPLITUDE,
             ),
-            np.random.uniform(
+            self.np_random.uniform(
                 -self.GOAL_RANDOM_AMPLITUDE,
                 self.GOAL_RANDOM_AMPLITUDE,
             ),
@@ -121,7 +121,7 @@ class AdaptiveTransportAviary(BaseAviary):
         if self.PAYLOAD_TERMINATION:
             pre_target = self.TARGET_POSITION + np.array([
                 0.0,
-                np.random.choice([-0.1, 0.1]),
+                self.np_random.choice([-0.1, 0.1]),
                 0.4,
             ])
 
@@ -144,11 +144,11 @@ class AdaptiveTransportAviary(BaseAviary):
             self.target_qpos_adr:self.target_qpos_adr + 3
         ] = self.TARGET_POSITION - np.array([0.0, 0.0, 0.2])
 
-        self.MASS = np.random.uniform(
+        self.MASS = self.np_random.uniform(
             self.MIN_PAYLOAD_MASS,
             self.MAX_PAYLOAD_MASS,
         )
-        self.RADIUS = np.random.uniform(
+        self.RADIUS = self.np_random.uniform(
             self.MIN_PAYLOAD_RADIUS,
             self.MAX_PAYLOAD_RADIUS,
         )
@@ -370,7 +370,7 @@ class AdaptiveTransportAviary(BaseAviary):
             stability_penalty = np.linalg.norm(self.rpy[i][0:2])
 
             reached_waypoint = (
-                height_error < self.WAYPOINT_RADIUS / 10
+                height_error < self.WAYPOINT_RADIUS/5 
                 and xy_error < self.WAYPOINT_RADIUS
             )
 
