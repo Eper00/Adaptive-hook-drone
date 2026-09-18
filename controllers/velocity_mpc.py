@@ -12,8 +12,8 @@ class VelocityMPC:
         horizon=20,
         dt=1.0 / 48.0,
         w_position=10.0,
-        w_velocity=0.1,
-        w_control=0.01,
+        w_velocity=0.0,
+        w_control=0.1,
         w_delta_control=0.1,
         w_terminal=50.0,
         max_velocity=2.0,
@@ -46,7 +46,6 @@ class VelocityMPC:
         self.v0 = self.opti.parameter(3)
         self.goal = self.opti.parameter(3)
         self.tendon = self.opti.parameter(2)
-        self.grab_flag = self.opti.parameter()
         self.u_previous = self.opti.parameter(3)
 
         # Initial state
@@ -64,7 +63,7 @@ class VelocityMPC:
             u_k = self.U[:, k]
 
             # Learned dynamics
-            mlp_input = ca.vertcat(v_k, self.tendon, u_k, self.grab_flag)
+            mlp_input = ca.vertcat(v_k, self.tendon, u_k)
             delta_v = self.mlp(mlp_input)
 
             v_next = v_k + delta_v
@@ -108,7 +107,6 @@ class VelocityMPC:
         velocity,
         tendon_lengths,
         goal,
-        grab_flag,
         previous_target_velocity=None,
     ):
         position = np.asarray(position, dtype=np.float64)
@@ -128,7 +126,6 @@ class VelocityMPC:
         self.opti.set_value(self.v0, velocity)
         self.opti.set_value(self.goal, goal)
         self.opti.set_value(self.tendon, tendon_lengths)
-        self.opti.set_value(self.grab_flag, float(grab_flag))
         self.opti.set_value(self.u_previous, previous_target_velocity)
 
         # Initial state guess

@@ -64,7 +64,7 @@ def adjust_difficulty(env, level,level_changed=True):
                
             elif level ==1:
                 print(f"New level: {level}")
-                
+                env.RANDOM_OREINTATION = True
                 env.MIN_PAYLOAD_MASS=0.05
                 env.MAX_PAYLOAD_MASS=0.05
                 env.MIN_PAYLOAD_RADIUS=0.02
@@ -78,6 +78,8 @@ def adjust_difficulty(env, level,level_changed=True):
                 env.MIN_PAYLOAD_RADIUS=0.02
                 env.MAX_PAYLOAD_RADIUS=0.04
                 env.GRAB_FLAG_ENABLE=True
+              
+           
     
 def train_single(
     total_timesteps: int = 100_000,
@@ -104,6 +106,7 @@ def train_single(
     # -----------------------------
     # Select environment class
     # -----------------------------
+    ctrl_freq=48
     if args.env_type == "adaptive_hook_hover":
         env_class = AdaptiveHookHover
         learning_rate = 3e-4
@@ -136,13 +139,13 @@ def train_single(
     if curriculum_flag:
        eval_env = make_vec_env(
         lambda: CurriculumWrapper(
-            env_class(ctrl_freq=48, sim_freq=240),
+            env_class(ctrl_freq=ctrl_freq, sim_freq=240),
             difficulty_fn=adjust_difficulty
         ),
         n_envs=1,
     )
     else:
-        eval_env = env_class(ctrl_freq=48, sim_freq=240)
+        eval_env = env_class(ctrl_freq=ctrl_freq, sim_freq=240)
 
 
     # -----------------------------
@@ -153,7 +156,7 @@ def train_single(
         # 2) Vectorized curriculum env for PPO
         env = make_vec_env(
             lambda: CurriculumWrapper(
-                env_class(ctrl_freq=48, sim_freq=240),
+                env_class(ctrl_freq=ctrl_freq, sim_freq=240),
                 difficulty_fn=adjust_difficulty
             ),
             n_envs=8,
@@ -162,7 +165,7 @@ def train_single(
     else:
         # Normal vectorized env
         env = make_vec_env(
-            lambda: env_class(ctrl_freq=48, sim_freq=240),
+            lambda: env_class(ctrl_freq=ctrl_freq, sim_freq=240),
             n_envs=8,
         )
     # comprahansion between cirruculum and naive learning

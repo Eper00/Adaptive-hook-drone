@@ -28,28 +28,33 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
     from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
     from multi_drone_mujoco.envs.adaptive_hook_director_velocity import AdaptiveTransportDirectorAviary
-    
+    from multi_drone_mujoco.envs.adaptive_hook_director_velocity_MPC import AdaptiveTransportMPC
     print(f"Loading model from: {model_path}")
-    model = PPO.load(model_path)
+    ctrl_freq=48
+    if env_type != "adaptive_director_MPC":
+        print(f"Loading model from: {model_path}")
+        model = PPO.load(model_path)
     
     if env_type == "multi":
-        env = MultiHoverAviary(num_drones=2, ctrl_freq=48, sim_freq=240, render_mode="rgb_array")
+        env = MultiHoverAviary(num_drones=2, ctrl_freq=ctrl_freq, sim_freq=240, render_mode="rgb_array")
     elif env_type == "adaptive_hook_hover":
-        env = AdaptiveHookHover(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env = AdaptiveHookHover(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     elif env_type == "hover":
-        env = HoverAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env = HoverAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     elif env_type == "fly_through":
-        env = FlyThroughAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env = FlyThroughAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     elif env_type == "velocity_aviary":
-        env = VelocityAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env = VelocityAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     elif env_type == "adaptive_fly_through":
-        env = AdaptiveFlyThroughAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env = AdaptiveFlyThroughAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     elif env_type == "adaptive_transport":
-        env = AdaptiveTransportAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env = AdaptiveTransportAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     elif env_type == "adaptive_velocity":
-        env = AdaptiveVelocityAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env = AdaptiveVelocityAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     elif env_type == "adaptive_director":
-        env= AdaptiveTransportDirectorAviary(ctrl_freq=48, sim_freq=240, render_mode="human")
+        env= AdaptiveTransportDirectorAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
+    elif env_type == "adaptive_director_MPC":
+        env=AdaptiveTransportMPC(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
     success=0
     failed=0
     failed_stability = 0
@@ -85,7 +90,8 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         truncated = False
         while not terminated and not truncated:
             
-            action, _ = model.predict(obs, deterministic=True)
+            
+
             if env_type == "adaptive_hook_hover":
                time.sleep(0.005)
             elif env_type == "fly_through":
@@ -109,15 +115,21 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                 time.sleep(0.005)
                
             elif env_type=="adaptive_director":
-                time.sleep(0.001)
+                env.render_mode=None
+          
                
             env.render()
             
-            obs, reward, terminated, truncated, info = env.step(action)
+            if env_type == "adaptive_director_MPC":
+                    obs, reward, terminated, truncated, info = env.step()
+
+            else:
+                action, _ = model.predict(obs, deterministic=True)
+                obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             steps += 1
             
-        if env_type=="adaptive_director":
+        if env_type=="adaptive_director" or env_type=="adaptive_director_MPC":
             if env.current_waypoint_idx != len(env.WAYPOINTS)-1:
                 terminated = True
                 truncated = False
@@ -146,7 +158,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                 
             if truncated:
                 success += 1
-            if env_type =="adaptive_director":
+            if env_type =="adaptive_director" or env_type =="adaptive_director_MPC":
                 print(f"Failed stab: {failed_stability}, failed incomplete {failed_incomplete}, failed payload {failed_payload}")
             print(f"Success: {success}, Failed: {failed}, Ratio: {success/(success+failed) if (success+failed)>0 else 0}")
             print(f"  Episode {ep + 1}: reward={total_reward:.2f}, steps={steps}")
@@ -156,7 +168,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, required=True)
+    parser.add_argument("--model_path", type=str, required=False)
     parser.add_argument("--env_type", type=str, default="hover")
     parser.add_argument("--episodes", type=int, default=3)
     parser.add_argument("--curriculum_flag",type=str, default="false")
