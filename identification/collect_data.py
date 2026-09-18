@@ -22,8 +22,9 @@ def collect_data(episodes: int):
     env = AdaptiveVelocityAviary(
         ctrl_freq=48,
         sim_freq=240,
-        render_mode=None
+        render_mode="human"
     )
+    env.EPISODE_LEN_SEC=10
 
     # ---------------------------------------------------------
     # Complete dataset
@@ -44,7 +45,7 @@ def collect_data(episodes: int):
         env.MAX_PAYLOAD_RADIUS = 0.04
 
         # Randomly enable/disable payload grabbing
-        env.GRAB_FLAG_ENABLE = np.random.uniform(0, 1) < 0.5
+        env.GRAB_FLAG_ENABLE = True
 
         obs, info = env.reset()
 
@@ -59,17 +60,26 @@ def collect_data(episodes: int):
         truncated = False
 
         while not terminated and not truncated:
-
+            time.sleep(0.001)
             # -------------------------------------------------
             # Change target velocity
             # -------------------------------------------------
 
             if steps % 50 == 0:
-                env.TARGET_VEL = np.random.uniform(
-                    -0.5,
-                    0.5,
-                    3
-                )
+              
+                p = np.random.uniform(0,1)
+               
+                if p < 0.4:
+                               # Hover / kis sebesség
+                    env.TARGET_VEL = np.random.uniform(-0.1, 0.1, size=3)
+               
+                elif p < 0.7:
+                               # Közepes sebesség
+                    env.TARGET_VEL = np.random.uniform(-0.5, 0.5, size=3)
+               
+                else:
+                               # Teljes tartomány
+                    env.TARGET_VEL = np.random.uniform(-1.0, 1.0, size=3)
 
             # -------------------------------------------------
             # Current state
@@ -85,7 +95,7 @@ def collect_data(episodes: int):
 
            
 
-            grab_flag = float(env.GRAB_FLAG_ENABLE)
+           
 
             
 
@@ -97,7 +107,7 @@ def collect_data(episodes: int):
                 velocity,
                 tendon_lengths,
                 target_velocity,
-                [grab_flag],
+                
             ])
 
             # -------------------------------------------------
