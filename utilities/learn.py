@@ -1,18 +1,24 @@
-"""Example: Train a hover policy with Stable-Baselines3 PPO.
+"""Train the hook-drone policies with Stable-Baselines3 PPO.
+
+Environments (--env_type):
+    adaptive_velocity   low-level velocity controller (AdaptiveVelocityAviary)
+    adaptive_transport  rotor-level transport policy (AdaptiveTransportAviary)
+    adaptive_director   velocity-command transport policy on top of the
+                        trained velocity controller (AdaptiveTransportDirectorAviary)
+
+With --curriculum_flag true the environments are wrapped in
+CurriculumWrapper and get harder according to ``adjust_difficulty``.
+Models and logs go to results/rl_<env_type>[_curriculum]/.
 
 Usage:
-    python -m multi_drone_mujoco.examples.learn
-    python -m multi_drone_mujoco.examples.learn --multiagent true
+    python utilities/learn.py --env_type adaptive_velocity --timesteps 5000000 --curriculum_flag true
+    python utilities/learn.py --env_type adaptive_director --timesteps 5000000 --curriculum_flag true
 """
 
 import argparse
 import os
 from pathlib import Path
-from multi_drone_mujoco.envs.hover_aviary import HoverAviary
-from multi_drone_mujoco.envs.fly_through_aviary import FlyThroughAviary
-from multi_drone_mujoco.envs.adaptive_hook_hover import AdaptiveHookHover
-from multi_drone_mujoco.envs.velocity_aviary import VelocityAviary
-from multi_drone_mujoco.envs.adaptive_hook_fly_thorugh import AdaptiveFlyThroughAviary
+
 from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
 from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
 from multi_drone_mujoco.envs.adaptive_hook_director_velocity import AdaptiveTransportDirectorAviary
@@ -20,9 +26,22 @@ from multi_drone_mujoco.wrappers.curriculum import CurriculumWrapper,CurriculumC
 from stable_baselines3.common.callbacks import CallbackList
 import numpy as np
 def adjust_difficulty(env, level,level_changed=True):
-    if isinstance(env, AdaptiveHookHover):
-        if level_changed:
-            env.random_acion_amplitude = min(env.random_acion_amplitude + 0.05, 1)
+    """Curriculum levels (called by CurriculumWrapper on reset after a level change).
+
+    Transport / director:
+      0  waypoints only (no payload)
+      1  pick up a light, thin payload (0.05 kg, R 0.02-0.025 m)
+      2  full payload range (0.01-0.25 kg, R 0.02-0.04 m)
+      3  final task: PAYLOAD_TERMINATION (random start, pre-grasp waypoint,
+         termination when the payload is lost), goal amplitude 1.5 m
+    Velocity:
+      0  no payload
+      1  light payload in ~50 % of the episodes, random start position
+      2  full payload range
+
+    Note: the wrapper only calls this after a level change, so level 0 runs
+    with the environment's default settings.
+    """
     if isinstance(env,AdaptiveTransportAviary) or isinstance(env,AdaptiveTransportDirectorAviary):
         if level_changed:
             if level==0:
@@ -86,7 +105,9 @@ def train_single(
     output_dir: str = "results/rl_hover",
     curriculum_flag: bool = False,
 ):
-    """Train single-drone hover with PPO + optional curriculum learning."""
+    """Train one of the hook environments with PPO (8 parallel envs) and
+    optional curriculum learning; the best model (by evaluation reward) and
+    the final model are saved to ``output_dir``."""
     try:
         from stable_baselines3 import PPO
         from stable_baselines3.common.env_util import make_vec_env
@@ -107,20 +128,7 @@ def train_single(
     # Select environment class
     # -----------------------------
     ctrl_freq=48
-    if args.env_type == "adaptive_hook_hover":
-        env_class = AdaptiveHookHover
-        learning_rate = 3e-4
-        
-    elif args.env_type == "fly_through":
-        env_class = FlyThroughAviary
-        learning_rate = 3e-4
-    elif args.env_type == "velocity_aviary":
-        env_class = VelocityAviary
-        learning_rate = 3e-4
-    elif args.env_type == "adaptive_fly_through":
-        env_class = AdaptiveFlyThroughAviary
-        learning_rate = 3e-4
-    elif args.env_type == "adaptive_transport":
+    if args.env_type == "adaptive_transport":
         env_class = AdaptiveTransportAviary
         learning_rate = 3e-4
     elif args.env_type == "adaptive_velocity":
@@ -130,12 +138,14 @@ def train_single(
         env_class = AdaptiveTransportDirectorAviary
         learning_rate = 3e-4
     else:
-        env_class = HoverAviary
-        learning_rate = 3e-4
+        # (env_class stays undefined: training cannot start)
+        print("Invalid enviroment type")
 
     # -----------------------------
     # Evaluation environment
     # -----------------------------
+    # With curriculum the evaluation env follows the training level (synced
+    # by CurriculumCallback)
     if curriculum_flag:
        eval_env = make_vec_env(
         lambda: CurriculumWrapper(
@@ -168,10 +178,12 @@ def train_single(
             lambda: env_class(ctrl_freq=ctrl_freq, sim_freq=240),
             n_envs=8,
         )
-    # comprahansion between cirruculum and naive learning
+    # (training with and without curriculum can be compared on the same env)
     # -----------------------------
     # Evaluation callback
     # -----------------------------
+    # Evaluates every 5000 steps per env (x8 envs = every 40k timesteps) and
+    # keeps best_model.zip
     eval_callback = EvalCallback(
         eval_env,
         best_model_save_path=output_dir,
@@ -228,6 +240,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
    
     parser.add_argument("--timesteps", type=int, default=100_000)
+    # adaptive_velocity / adaptive_transport / adaptive_director (see module docstring)
     parser.add_argument("--env_type", type=str, default="hover")
     parser.add_argument("--curriculum_flag",type=str, default="false")
     args = parser.parse_args()

@@ -32,6 +32,9 @@ class CurriculumConfig:
     advance_count : int
         Must exceed threshold for this many consecutive windows to advance.
     """
+    # Presets per environment: only the one written as plain fields is active
+    # (currently: adaptive transport / director); the others are kept as
+    # strings. Swap them before training another environment.
     """Adaptive hover:
     metric: str = "reward"
     threshold_advance: float = 400
@@ -53,7 +56,7 @@ class CurriculumConfig:
     
     """Adaptive velocity:
     metric: str = "reward"
-    threshold_advance: float = 110/2.5
+    threshold_advance: float = 110
     threshold_retreat: float = -1000
     window_size: int = 20
     num_levels: int = 3
@@ -64,7 +67,9 @@ class CurriculumWrapper(gym.Wrapper):
     """Gymnasium wrapper that implements automatic curriculum learning.
 
     The wrapper tracks agent performance and adjusts environment difficulty
-    by calling a user-provided `difficulty_fn(env, level)` on each reset.
+    by calling a user-provided `difficulty_fn(env, level, level_changed)` on
+    each reset (utilities/learn.py's ``adjust_difficulty`` only acts when
+    ``level_changed`` is True). Every parallel env has its own level.
 
     Example
     -------
@@ -236,11 +241,14 @@ class CurriculumWrapper(gym.Wrapper):
 
     def get_level(self):
         return self.current_level
+    # (note: level_up_times is never set, so this raises AttributeError)
     def get_level_up_times(self):
         return self.level_up_times
 
 
 class CurriculumCallback(BaseCallback):
+    """Logs the curriculum level to TensorBoard and keeps the evaluation env
+    on the highest level reached by the training envs."""
 
     def __init__(self, eval_env, verbose=0):
         super().__init__(verbose)
@@ -250,9 +258,9 @@ class CurriculumCallback(BaseCallback):
 
     def _on_step(self):
 
-        # Lekérjük a training env-ek aktuális szintjeit
+        # Current levels of the training envs
         levels = self.training_env.env_method("get_level")
-        # 8 párhuzamos env esetén átlagolunk
+        # With 8 parallel envs: follow the most advanced one
         current_level = max(levels)
 
         # TensorBoard log
@@ -266,7 +274,7 @@ class CurriculumCallback(BaseCallback):
             print(f"[CURRICULUM] Level started at: "
             f"{current_level}")
             
-                        # Eval env szinkronizálása
+                        # Synchronize the eval env
             self.eval_env.env_method(
                             "set_level",
                             current_level
@@ -280,7 +288,7 @@ class CurriculumCallback(BaseCallback):
                 f"{self.last_level} -> {current_level}"
             )
 
-            # Eval env szinkronizálása
+            # Synchronize the eval env
             self.eval_env.env_method(
                 "set_level",
                 current_level

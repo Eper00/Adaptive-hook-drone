@@ -1,7 +1,12 @@
 """Base Aviary environment for multi-drone MuJoCo simulation.
 
 Implements the core physics, observation, and rendering logic.
-Subclasses define specific tasks (hover, velocity tracking, etc.).
+Subclasses define specific tasks (velocity tracking, payload transport, ...).
+
+Besides the Crazyflie / racing models, the BB_HOOK drone carries a
+tendon-driven hook under its body (a chain of 7 segments, see
+``_generate_aviary_xml``), and ``transport_target=True`` adds the payload (a
+cylinder on a stand) and a goal marker to the scene.
 """
 
 import os
@@ -95,17 +100,18 @@ DRONE_PARAMS = {
         "collision_r": 0.15,
         "collision_z_offset": 0.0,
     },
+    # Drone with the tendon-driven hook (values from the real vehicle's model)
     DroneModel.BB_HOOK: {
         "mass": 0.605,                     # MASS
-        "arm_length": 0.091,               # OFFSET_X2 (nagyobbik karhossz)
+        "arm_length": 0.091,               # OFFSET_X2 (the longer arm)
         "thrust2weight_ratio": 15 / (0.605 * 9.81),  # MAX_THRUST / (m*g)
         "ixx": 1.5e-3,                     # DIAGINERTIA
         "iyy": 1.45e-3,
         "izz": 2.66e-3,
         "kf": 9.3945e-7,                   # THRUST_FORCE_COEFF
         "km": 9.3945e-7 * 0.5954,          # MOTOR_PARAM * kf
-        "prop_radius": 0.0635,             # (nincs megadva → RACE értékét használjuk)
-        "max_speed_kmh": 30.0,             # nincs adat → CF2 érték
+        "prop_radius": 0.0635,             # (not given -> RACE value)
+        "max_speed_kmh": 30.0,             # no data -> CF2 value
         "gnd_eff_coeff": 11.36859,         # CF2 / RACE default
         "drag_coeff_xy": 9.1785e-7,
         "drag_coeff_z": 10.311e-7,
@@ -127,7 +133,13 @@ def _generate_aviary_xml(
     timestep: float = 1 / 240,
     transport_target: bool =False,
 ) -> str:
-    """Generate MuJoCo XML for the aviary with N drones."""
+    """Generate MuJoCo XML for the aviary with N drones.
+
+    For DroneModel.BB_HOOK every drone gets the hook chain (HOOK_XML), the
+    two tendons that curl it (HOOK_TENDONS) and their actuators
+    (HOOK_ACTUATORS). ``transport_target`` adds the payload and the goal site.
+    Angles in the XML are in degrees (compiler angle="degree").
+    """
     meshdir = str(CF2_MESH_DIR)
     params = DRONE_PARAMS[drone_model]
 
@@ -147,11 +159,15 @@ def _generate_aviary_xml(
     drone_bodies = ""
     sensors = ""
 
-    # --- HOOK LÁNC, CSAK BB_HOOK ESETÉN ---
+    # --- HOOK CHAIN, ONLY FOR BB_HOOK ---
+    # segment_1 hangs from the drone on a nearly rigid hinge (link_1, +-5 deg);
+    # segments 2..7 form the curling part (links 2..7, +-80 deg, joint class
+    # "hook_link"). The s*_* sites are the tendon routing points: sites *_1 /
+    # *_2 on the +y side (tendon1), *_3 / *_4 on the -y side (tendon2).
     HOOK_XML = """
       <body name="segment_1" pos="0 0 -0.13">
         <inertial pos="0 0 0" mass="0.005" diaginertia="1e-5 1e-5 1e-5"/>
-        <joint name="link_1" type="hinge" axis="1 0 0" range="-1.57079632679 1.57079632679"/>
+        <joint name="link_1" type="hinge" axis="1 0 0" range="-5 5" damping="0.002"/>
 
         <geom name="segment_geom_1"
             type="box"
@@ -166,7 +182,7 @@ def _generate_aviary_xml(
 
         <body name="segment_2" pos="0 0 -0.11">
             <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
-            <joint name="link_2" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+            <joint name="link_2" type="hinge" axis="1 0 0" range="-80 80" class="hook_link"/>
 
             <geom name="segment_geom_2"
                 type="capsule"
@@ -182,7 +198,7 @@ def _generate_aviary_xml(
 
             <body name="segment_3" pos="0 0 -0.065">
                 <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
-                <joint name="link_3" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+                <joint name="link_3" type="hinge" axis="1 0 0" range="-80 80" class="hook_link"/>
 
                 <geom name="segment_geom_3"
                     type="capsule"
@@ -198,7 +214,7 @@ def _generate_aviary_xml(
 
                 <body name="segment_4" pos="0 0 -0.045">
                     <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
-                    <joint name="link_4" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+                    <joint name="link_4" type="hinge" axis="1 0 0" range="-80 80" class="hook_link"/>
 
                     <geom name="segment_geom_4"
                         type="capsule"
@@ -214,7 +230,7 @@ def _generate_aviary_xml(
 
                     <body name="segment_5" pos="0 0 -0.035">
                         <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
-                        <joint name="link_5" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+                        <joint name="link_5" type="hinge" axis="1 0 0" range="-80 80" class="hook_link"/>
 
                         <geom name="segment_geom_5"
                             type="capsule"
@@ -230,7 +246,7 @@ def _generate_aviary_xml(
 
                         <body name="segment_6" pos="0 0 -0.028">
                             <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
-                            <joint name="link_6" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+                            <joint name="link_6" type="hinge" axis="1 0 0" range="-80 80" class="hook_link"/>
 
                             <geom name="segment_geom_6"
                                 type="capsule"
@@ -246,7 +262,7 @@ def _generate_aviary_xml(
 
                             <body name="segment_7" pos="0 0 -0.020">
                                 <inertial pos="0 0 0" mass="0.001" diaginertia="5e-6 5e-6 5e-6"/>
-                                <joint name="link_7" type="hinge" axis="1 0 0" range="-0.5236 0.5236"/>
+                                <joint name="link_7" type="hinge" axis="1 0 0" range="-80 80" class="hook_link"/>
 
                                 <geom name="segment_geom_7"
                                     type="capsule"
@@ -267,6 +283,8 @@ def _generate_aviary_xml(
         </body>
       </body>
 """
+    # Two antagonistic tendons along the +y / -y side of the chain: shortening
+    # one curls the hook to that side
     HOOK_TENDONS = """
 <tendon>
     <spatial name="tendon1" width="0.0007" frictionloss="0.1"
@@ -323,21 +341,29 @@ def _generate_aviary_xml(
 </tendon>
 """
 
-    HOOK_ACTUATORS = """
+    # Tendon actuators: force = kp * (L0 + s * ctrl - length).
+    # ctrl = 0 holds the tendon at its straight-hook rest length L0 (no force,
+    # so the chain is not compressed and does not buckle); the envs command
+    # (a, -a): a > 0 curls the hook to the drone's -y side, a < 0 to +y, and
+    # |a| = 1 curls it fully with up to ~18 N of tendon force, enough to hold
+    # the payload.
+    TENDON_REST_LENGTH = 0.4212
+    TENDON_KP = 100.0
+    TENDON_STROKE = 0.2
+    TENDON_KV = 0.2
+    HOOK_ACTUATORS = f"""
 <actuator>
-    <position name="act1" tendon="tendon1"
-              kp="20.0" ctrllimited="true"
-              ctrlrange="-1 1"
-              lengthrange="0.185632848 1.160205301"/>
+    <general name="act1" tendon="tendon1" ctrllimited="true" ctrlrange="-1 1"
+             gainprm="{TENDON_KP * TENDON_STROKE}" biastype="affine"
+             biasprm="{TENDON_KP * TENDON_REST_LENGTH} {-TENDON_KP} {-TENDON_KV}"/>
 
-    <position name="act2" tendon="tendon2"
-              kp="20.0" ctrllimited="true"
-              ctrlrange="-1 1"
-              lengthrange="0.185632848 1.160205301"/>
+    <general name="act2" tendon="tendon2" ctrllimited="true" ctrlrange="-1 1"
+             gainprm="{TENDON_KP * TENDON_STROKE}" biastype="affine"
+             biasprm="{TENDON_KP * TENDON_REST_LENGTH} {-TENDON_KP} {-TENDON_KV}"/>
 </actuator>
 """
 
-    # --- DRÓNOK GENERÁLÁSA ---
+    # --- DRONE BODIES ---
     for d in range(num_drones):
         x, y, z = init_xyzs[d]
         r, p_angle, yaw = init_rpys[d]
@@ -413,12 +439,17 @@ def _generate_aviary_xml(
     <framelinvel name="{prefix}_vel" objtype="site" objname="{prefix}_center"/>
     <frameangvel name="{prefix}_angvel" objtype="site" objname="{prefix}_center"/>"""
 
+    # Tendon length sensors (the envs read ten_length directly; kept for logging)
     if drone_model == DroneModel.BB_HOOK:
         sensors += f"""
         <tendonpos name="{prefix}_tendon1_len" tendon="tendon1"/>
         <tendonpos name="{prefix}_tendon2_len" tendon="tendon2"/>"""
 
 
+    # Payload for the transport task: a free body "target" with the red
+    # cylinder (axis along x) at its origin, two connectors and a holder plate
+    # welded below it. The envs resize / re-place these parts at every reset
+    # (radius, height, mass); "goal" is the green drop-off marker.
     transport_target_bodies=""
     if transport_target:
         transport_target_bodies="""
@@ -500,6 +531,12 @@ def _generate_aviary_xml(
   <compiler inertiafromgeom="false" autolimits="true" angle="degree"/>
 
   <default>
+    <!-- Hook links 2-7: the armature raises the (tiny) effective inertia so the
+         joint limits stay stiff against the tendon forces; the stiffness keeps
+         the hook straight when the tendons are relaxed. -->
+    <default class="hook_link">
+      <joint armature="0.001" damping="0.005" stiffness="0.02" solreflimit="0.01 1"/>
+    </default>
     <default class="cf2">
       <default class="visual">
         <geom group="2" type="mesh" contype="0" conaffinity="0"/>
@@ -717,6 +754,7 @@ class BaseAviary(gym.Env):
         self.model = mujoco.MjModel.from_xml_string(xml_str)
         self.data = mujoco.MjData(self.model)
 
+        # Body ids of the hook segments (used for the grasp logic / observations)
         if self.DRONE_MODEL ==DroneModel.BB_HOOK:
             self.segment_2_id = self.model.body("segment_2").id
             self.segment_3_id = self.model.body("segment_3").id
@@ -725,6 +763,7 @@ class BaseAviary(gym.Env):
             self.segment_6_id = self.model.body("segment_6").id
             self.segment_7_id = self.model.body("segment_7").id
             
+        # Ids / addresses of the payload parts (moved and resized by the envs)
         if transport_target :
             self.target_joint_id = self.model.joint("target_joint").id
             self.target_qpos_adr = self.model.jnt_qposadr[self.target_joint_id]
@@ -839,7 +878,7 @@ class BaseAviary(gym.Env):
         action : ndarray
             Action array, format depends on self.ACT_TYPE.
         """
-        # Preprocess action to RPMs
+        # Preprocess action to RPMs (BB_HOOK: action = [4 motors, 2 tendons])
         rpm_actions=action[:4]
         clipped_action = np.reshape(self._preprocessAction(rpm_actions), (self.NUM_DRONES, 4))
         if self.DRONE_MODEL==DroneModel.BB_HOOK:
@@ -856,6 +895,7 @@ class BaseAviary(gym.Env):
             ):
                 self._updateAndStoreKinematicInformation()
             # Apply physics for each drone
+            # Tendon commands go straight to the two tendon actuators
             if self.DRONE_MODEL==DroneModel.BB_HOOK:
                 act1_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "act1")
                 act2_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, "act2")
@@ -864,6 +904,7 @@ class BaseAviary(gym.Env):
             for i in range(self.NUM_DRONES):
                 if self.PHYSICS == Physics.MJC:
                     self._physics(rpm[i, :], i)
+                    
                 elif self.PHYSICS == Physics.DYN:
                     self._dynamics(rpm[i, :], i)
                 elif self.PHYSICS == Physics.MJC_GND:
@@ -1123,13 +1164,16 @@ class BaseAviary(gym.Env):
 
 
     def _getDroneTendonLengths(self,nth_drone):
+        """Current lengths of tendon1 / tendon2 [m] (~0.42 m with a straight hook)."""
         return self.tendon_lengths[nth_drone,:]
 
 
     def _getDroneStateVector(self, nth_drone):
-        """Get the 20-dim state vector for a drone.
+        """Get the 22-dim state vector for a drone.
 
-        Returns: [pos(3), quat(4), rpy(3), vel(3), ang_v(3), last_action(4), tendon_lengths(2)]
+        Returns: [pos(3), quat(4), rpy(3), vel(3), ang_v(3), last_rpm(4), tendon_lengths(2)]
+        (indices: pos 0:3, quat 3:7, rpy 7:10, vel 10:13, ang_v 13:16,
+        last_rpm 16:20, tendon_lengths 20:22)
         """
         return np.hstack([
             self.pos[nth_drone, :],
@@ -1254,6 +1298,7 @@ class BaseAviary(gym.Env):
                 rpms[i, 3] = collective_rpm + roll_cmd * 0.25 * self.MAX_RPM + pitch_cmd * 0.25 * self.MAX_RPM + yaw_rate_cmd * 0.25 * self.MAX_RPM
             return np.clip(rpms, 0, self.MAX_RPM)
         elif self.ACT_TYPE == ActionType.HOOK:
+            # BB_HOOK: normalized motor commands (the tendons are applied in step)
             action = np.clip(action.copy(),-1,1)
             rpms = action[0:4]
             rpms = self._normalizedActionToRPM(rpms)
@@ -1261,7 +1306,10 @@ class BaseAviary(gym.Env):
         raise ValueError(f"Unknown action type: {self.ACT_TYPE}")
 
     def _normalizedActionToRPM(self, action):
-        """Convert [-1, 1] normalized action to [0, MAX_RPM]."""
+        """Convert [-1, 1] normalized action to [0, MAX_RPM].
+
+        Piecewise linear: -1 -> 0, 0 -> HOVER_RPM, 1 -> MAX_RPM.
+        """
         return np.where(
             action <= 0,
             (action + 1) * self.HOVER_RPM,
@@ -1292,6 +1340,7 @@ class BaseAviary(gym.Env):
             act_lower = np.tile(np.array([-1, -1, -1, -1]), self.NUM_DRONES)
             act_upper = np.tile(np.array([1, 1, 1, 1]), self.NUM_DRONES)
         elif self.ACT_TYPE==ActionType.HOOK:
+            # 4 motors + 2 tendons (the hook envs override this with [-1, 1]^6)
             act_lower = np.zeros(4 * self.NUM_DRONES)
             act_upper = np.full(4 * self.NUM_DRONES, self.MAX_RPM)
             extra_low = np.array([-1.0, -1.0], dtype=np.float32)
@@ -1307,6 +1356,8 @@ class BaseAviary(gym.Env):
         """Define observation space based on observation type."""
         if self.OBS_TYPE == ObservationType.KIN:
             # 20-dim per drone: pos(3), quat(4), rpy(3), vel(3), angvel(3), last_action(4)
+            # (note: _computeObs returns the 22-dim state incl. the tendon
+            # lengths; the hook envs define their own spaces)
             obs_lower = np.full(20 * self.NUM_DRONES, -np.inf)
             obs_upper = np.full(20 * self.NUM_DRONES, np.inf)
             return spaces.Box(low=obs_lower.astype(np.float32), high=obs_upper.astype(np.float32))

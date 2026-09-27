@@ -1,10 +1,30 @@
-"""Fly-Through Aviary: navigate through waypoints/gates."""
+"""Adaptive transport aviary: pick up a payload with the hook and deliver it.
+
+Task: take off to [0, 0, 1], fly to the grasp pose next to the payload,
+close the hook around it and carry it to a random goal. The payload is a red
+cylinder on a stand (holder plate + connectors) with random mass, radius and
+height; the hook is a tendon-driven chain under the drone (see base_aviary).
+
+Action (6):       4 normalized motor commands in [-1, 1] and 2 tendon
+                  commands; with GRAB_FLAG_ENABLE only action[4] is used, as
+                  the closing magnitude, and the curl direction is chosen from
+                  the geometry (see ``step``).
+Observation (35): [pos(3), rpy(3), vel(3), ang_vel(3), active waypoint - pos(3),
+                  payload - hook segment 2..7 (6 x 3), tendon_lengths(2)].
+
+Curriculum flags (set from utilities/learn.py):
+  GRAB_FLAG_ENABLE     the payload has to be picked up (else: waypoints only)
+  PAYLOAD_TERMINATION  final task: random start position, 4 waypoints
+                       (take-off, pre-grasp above the payload, grasp, goal)
+                       and termination when the payload is lost at the goal
+"""
 
 import numpy as np
 import mujoco
 from gymnasium import spaces
 
 from multi_drone_mujoco.envs.base_aviary import BaseAviary
+from multi_drone_mujoco.envs.mpc_mission import APPROACH_HEIGHT, grasp_pose
 from multi_drone_mujoco.utils.enums import (
     DroneModel,
     Physics,
@@ -14,7 +34,7 @@ from multi_drone_mujoco.utils.enums import (
 
 
 class AdaptiveTransportAviary(BaseAviary):
-    """Fly through waypoints task."""
+    """Pick-and-place transport task with the hook drone."""
 
     def __init__(
         self,
@@ -31,24 +51,27 @@ class AdaptiveTransportAviary(BaseAviary):
         initial_rpys=None,
         render_mode=None,
     ):
+        # Payload randomization ranges [kg] / [m]
         self.MIN_PAYLOAD_MASS = 0.05
         self.MAX_PAYLOAD_MASS = 0.3
         self.MIN_PAYLOAD_RADIUS = 0.02
         self.MAX_PAYLOAD_RADIUS = 0.04
 
-        self.GOAL_RANDOM_AMPLITUDE = 1.0
+        self.GOAL_RANDOM_AMPLITUDE = 1.0    # goal x, y drawn from +-amplitude
         self.EPISODE_LEN_SEC = 10
         self.WAYPOINT_RADIUS = waypoint_radius
 
+        # TARGET_POSITION anchors the payload (redrawn at every reset: the
+        # cylinder centre is 0.245 m below it); GOAL_POSITION is the drop-off
         self.TARGET_POSITION = [1.0, 0.0, 0.6]
         self.GOAL_POSITION = [2.0, 0.0, 1.0]
-
+        self.TARGET_ORIENTATION = 0   # yaw target handed to the low-level controller
         self.PAYLOAD_RADIUS = 0.05
         self.PAYLOAD_MASS = 0.2
-
-        self.GRAB_FLAG = False
-        self.GRAB_FLAG_ENABLE = False
-        self.PAYLOAD_TERMINATION = False
+        self.RANDOM_ORIENTATION = False
+        self.GRAB_FLAG = False              # payload came close to the hook (see _update_grab_flag)
+        self.GRAB_FLAG_ENABLE = False       # curriculum: pick-up part of the task
+        self.PAYLOAD_TERMINATION = False    # curriculum: final task (see module docstring)
 
         if waypoints is None:
             self.WAYPOINTS = np.array([
@@ -59,13 +82,15 @@ class AdaptiveTransportAviary(BaseAviary):
         else:
             self.WAYPOINTS = np.array(waypoints)
 
+        # index of the active waypoint (advanced in _computeReward)
         self.current_waypoint_idx = np.zeros(
             num_drones if num_drones > 1 else 1,
             dtype=int,
         )
 
         if initial_xyzs is None:
-            initial_xyzs = np.array([[0.0, 0.0, 0.4]])
+            initial_xyzs = np.array([[0.0, 0.0, 0.5]])
+        self.DEFAULT_START = np.array(initial_xyzs, dtype=float).reshape(-1, 3)[0].copy()
         if initial_rpys is None:
             initial_rpys = np.array([[0.0, 0.0, 0.0]])
         super().__init__(
@@ -84,25 +109,35 @@ class AdaptiveTransportAviary(BaseAviary):
         )
 
     def reset(self, seed=None, options=None):
+        """Draw a new scenario: start position, payload (position, height,
+        mass, radius), goal, and build the waypoints from them."""
         self.GRAB_FLAG = False
-        
-        if self.PAYLOAD_TERMINATION:
-            self.INIT_RPYS[0][2] = self.np_random.uniform(-np.pi,np.pi)
+        # The drone always starts level with yaw 0 (the hook curls in the
+        # body y-z plane); with PAYLOAD_TERMINATION its start position is
+        # randomized instead.
+        self.INIT_RPYS[0][:] = 0.0
         super().reset(seed=seed, options=options)
-       
+        if self.RANDOM_ORIENTATION:
+            self.INIT_RPYS[0][2] = self.np_random.uniform(0,2*np.pi)
         self.current_waypoint_idx[:] = 0
-       
+
+      
+        start = np.array(self.DEFAULT_START, dtype=float)
+        self._place_drone(start)
+
+        # Payload somewhere around, but not right below the drone
         while True:
-            x = self.np_random.uniform(-1, 1)
-            y = self.np_random.uniform(-1, 1)
+            x = start[0] + self.np_random.uniform(-1, 1)
+            y = start[1] + self.np_random.uniform(-1, 1)
 
-            if abs(x) > 0.2 or abs(y) > 0.2:
+            if abs(x - start[0]) > 0.2 or abs(y - start[1]) > 0.2:
                 break
-
+        # Z sets the payload height: cylinder centre at Z - 0.245 above the floor
+        self.Z=self.np_random.uniform(0.45, 0.8)
         self.TARGET_POSITION = np.array([
             x,
             y,
-            self.np_random.uniform(0.45, 0.8),
+            self.Z,
         ])
 
         self.GOAL_POSITION = np.array([
@@ -117,32 +152,7 @@ class AdaptiveTransportAviary(BaseAviary):
             1.0,
         ])
 
-        # Waypoints
-        if self.PAYLOAD_TERMINATION:
-            pre_target = self.TARGET_POSITION + np.array([
-                0.0,
-                self.np_random.choice([-0.1, 0.1]),
-                0.4,
-            ])
-
-            self.WAYPOINTS = np.array([
-                [0.0, 0.0, 1.0],
-                pre_target,
-                self.TARGET_POSITION,
-                self.GOAL_POSITION,
-            ])
-        else:
-            self.WAYPOINTS = np.array([
-                [0.0, 0.0, 1.0],
-                self.TARGET_POSITION,
-                self.GOAL_POSITION,
-            ])
-
-        self.model.site_pos[self.goal_id] = self.GOAL_POSITION
-
-        self.data.qpos[
-            self.target_qpos_adr:self.target_qpos_adr + 3
-        ] = self.TARGET_POSITION - np.array([0.0, 0.0, 0.2])
+        self.model.site_pos[self.goal_id] = self.GOAL_POSITION   # green goal marker
 
         self.MASS = self.np_random.uniform(
             self.MIN_PAYLOAD_MASS,
@@ -153,6 +163,35 @@ class AdaptiveTransportAviary(BaseAviary):
             self.MAX_PAYLOAD_RADIUS,
         )
 
+        # Payload resting on the floor: the holder plate (half height 0.005)
+        # hangs 0.25 - Z below the cylinder, so the cylinder centre is at
+        # Z - 0.245 (it used to be spawned 4.5 cm higher and drop).
+        payload_center = self.TARGET_POSITION - np.array([0.0, 0.0, 0.245])
+        self.data.qpos[
+            self.target_qpos_adr:self.target_qpos_adr + 3
+        ] = payload_center
+
+        # Waypoints: take-off point, pick-up at the grasp pose (the same
+        # geometry the MPC uses), goal.
+        self.GRASP_POSITION = grasp_pose(payload_center, self.RADIUS)
+        if self.PAYLOAD_TERMINATION:
+            pre_target = self.GRASP_POSITION + np.array([0.0, 0.0, APPROACH_HEIGHT])
+
+            self.WAYPOINTS = np.array([
+                [0.0, 0.0, 1.0],
+                pre_target,
+                self.GRASP_POSITION,
+                self.GOAL_POSITION,
+            ])
+        else:
+            self.WAYPOINTS = np.array([
+                [0.0, 0.0, 1.0],
+                self.GRASP_POSITION,
+                self.GOAL_POSITION,
+            ])
+
+        # Payload geometry: cylinder radius (half length 0.12 m), holder plate
+        # under it, and the two connectors between them
         self.model.geom_size[self.target_geom_id] = [
             self.RADIUS,
             0.12,
@@ -163,7 +202,7 @@ class AdaptiveTransportAviary(BaseAviary):
             -(self.TARGET_POSITION[2] - 0.25)
         )
 
-        # Holder tömege
+        # Holder mass (= payload mass; the cylinder itself weighs 0.01 kg)
         self.model.body_mass[self.holder_body_id] = self.MASS
 
         red_bottom = -self.RADIUS
@@ -173,14 +212,14 @@ class AdaptiveTransportAviary(BaseAviary):
         connector_half_height = connector_length / 2 + 0.005
         connector_z = (red_bottom + holder_top) / 2 + 0.005
 
-        # Connector pozíciók
+        # Connector positions
         self.model.body_pos[self.left_connector_id][2] = connector_z
         self.model.body_pos[self.right_connector_id][2] = connector_z
 
         self.model.body_pos[self.left_connector_id][0] = 0.1
         self.model.body_pos[self.right_connector_id][0] = -0.1
 
-        # Connector méretek
+        # Connector sizes
         connector_size = [
             0.02,
             0.025,
@@ -195,7 +234,22 @@ class AdaptiveTransportAviary(BaseAviary):
 
         return self._computeObs(), self._computeInfo()
 
+    def _place_drone(self, position):
+        """Move the drone (level, yaw 0, at rest) to ``position`` after reset."""
+        self.INIT_XYZS[0] = position
+        joint = self.model.joint("drone0_joint")
+        adr = self.model.jnt_qposadr[joint.id]
+        self.data.qpos[adr:adr + 3] = position
+        self.data.qpos[adr + 3:adr + 7] = [1.0, 0.0, 0.0, 0.0]
+        self.data.qvel[self.model.jnt_dofadr[joint.id]:self.model.jnt_dofadr[joint.id] + 6] = 0.0
+        mujoco.mj_forward(self.model, self.data)
+        self._updateAndStoreKinematicInformation()
+
     def step(self, action):
+        """Apply the motor commands; the tendons are only driven once the
+        payload is near the hook (GRAB_FLAG) and the grasp waypoint is
+        active, with the magnitude from action[4] and the direction from the
+        geometry. Otherwise the tendons are relaxed."""
         action = action.copy()
         # --------------------------------------------------
         # TENDON CONTROL
@@ -225,7 +279,9 @@ class AdaptiveTransportAviary(BaseAviary):
                     # --------------------------------------
                     # Direction is given by geometry
                     # --------------------------------------
-                    if payload_pos[1] < hook_pos[1]:
+                    # (in the drone body frame: the hook curls in its y-z plane)
+                    rot = self.data.xmat[self.model.body("drone0").id].reshape(3, 3)
+                    if (rot.T @ (payload_pos - hook_pos))[1] < 0:
                         direction = 1.0
                         self.tendon_orientation = 1
                     else:
@@ -253,6 +309,8 @@ class AdaptiveTransportAviary(BaseAviary):
         return obs, rewards, terminated, truncated, infos
 
     def _update_grab_flag(self):
+        """Latch GRAB_FLAG once the payload centre comes within
+        RADIUS + 2 cm of hook segment 2 (it stays set for the episode)."""
         if self.GRAB_FLAG:
             return
 
@@ -268,18 +326,21 @@ class AdaptiveTransportAviary(BaseAviary):
             self.GRAB_FLAG = True
 
     def _advance_waypoint(self, drone_idx):
+        """Activate the next waypoint (the last one stays active)."""
         self.current_waypoint_idx[drone_idx] = min(
             self.current_waypoint_idx[drone_idx] + 1,
             len(self.WAYPOINTS) - 1,
         )
 
     def _actionSpace(self):
+        """4 normalized motor commands + 2 tendon commands, all in [-1, 1]."""
         return spaces.Box(
             low=-np.ones(6, dtype=np.float32),
             high=np.ones(6, dtype=np.float32),
         )
 
     def _observationSpace(self):
+        """33 unbounded kinematic/relative entries + 2 tendon lengths."""
         obs_lower_pos = np.full(33, -np.inf, dtype=np.float32)
         obs_upper_pos = np.full(33, np.inf, dtype=np.float32)
 
@@ -300,6 +361,7 @@ class AdaptiveTransportAviary(BaseAviary):
   
 
     def _computeObs(self):
+        """See the module docstring for the 35-dim layout (all in the world frame)."""
         obs_list = []
 
         for i in range(self.NUM_DRONES):
@@ -337,6 +399,8 @@ class AdaptiveTransportAviary(BaseAviary):
             )
         return np.concatenate(obs_list).astype(np.float32)
     def comulative_segment_distance(self):
+        """Norm of the gaps between the cylinder surface and the hook
+        segments 2..7 (small when the hook is wrapped around the payload)."""
         segment_distances=[]
         payload_pos = self.data.qpos[
                 self.target_qpos_adr:self.target_qpos_adr + 3
@@ -346,6 +410,13 @@ class AdaptiveTransportAviary(BaseAviary):
             segment_distances.append(np.linalg.norm(payload_pos-segment_pos)-self.RADIUS)
         return np.linalg.norm(segment_distances)
     def _computeReward(self, action):
+        """Waypoint bonuses + grasp / carry bonuses + distance and attitude
+        shaping, -100 on termination.
+
+        Note: this also advances ``current_waypoint_idx`` when a waypoint is
+        reached (within WAYPOINT_RADIUS horizontally and WAYPOINT_RADIUS / 5
+        vertically), so it has to run once per step.
+        """
         total = 0.0
 
         for i in range(self.NUM_DRONES):
@@ -375,7 +446,7 @@ class AdaptiveTransportAviary(BaseAviary):
             )
 
             # -----------------------------------------
-            # GRAB_FLAG nélkül
+            # Without GRAB_FLAG (waypoints only)
             # -----------------------------------------
             if not self.GRAB_FLAG_ENABLE:
 
@@ -390,7 +461,8 @@ class AdaptiveTransportAviary(BaseAviary):
                     self._advance_waypoint(i)
 
             # -----------------------------------------
-            # GRAB_FLAG + PAYLOAD_TERMINATION
+            # GRAB_FLAG + PAYLOAD_TERMINATION (final task, 4 waypoints:
+            # take-off, pre-grasp, grasp, goal)
             # -----------------------------------------
             elif self.PAYLOAD_TERMINATION:
 
@@ -407,7 +479,8 @@ class AdaptiveTransportAviary(BaseAviary):
                     if reached_waypoint:
                         total += 0.1
                                   
-                                    # 0.05 perfect 0.2 too much, do wee need a grab flag?
+                                    # grasp bonus: hook wrapped around the payload
+                                    # (0.05 is a tight threshold, 0.2 too loose)
                     if payload_error<0.1:
                         total += 5.0
                         self._advance_waypoint(i)
@@ -418,14 +491,15 @@ class AdaptiveTransportAviary(BaseAviary):
                     if payload_error<0.15:
                         total += 3.0
                     if reached_waypoint:
-                                            # 5 is large
-                                            # 1 is low
+                                            # goal bonus (5 was too large,
+                                            # 1 too low)
                         total += 3.0
 
                 total -= 0.03 * payload_error
 
             # -----------------------------------------
-            # GRAB_FLAG + nincs PAYLOAD_TERMINATION
+            # GRAB_FLAG without PAYLOAD_TERMINATION (3 waypoints:
+            # take-off, grasp, goal)
             # -----------------------------------------
             else:
 
@@ -440,7 +514,8 @@ class AdaptiveTransportAviary(BaseAviary):
                    if reached_waypoint:
                     total += 0.1
                   
-                    # 0.05 perfect 0.2 too much, do wee need a grab flag?
+                    # grasp bonus (note: here it is only given while the
+                    # grasp waypoint is also reached, unlike in the branch above)
                     if payload_error<0.1:
                         total += 5.0
                         self._advance_waypoint(i)
@@ -453,14 +528,13 @@ class AdaptiveTransportAviary(BaseAviary):
                     if payload_error<0.15:
                         total += 3.0
                     if reached_waypoint:
-                        # 5 is large
-                        # 1 is low
+                        # goal bonus (5 was too large, 1 too low)
                         total += 3.0
                 
                 total -= 0.03 * payload_error
 
             # -----------------------------------------
-            # Általános shaping
+            # General shaping (all cases)
             # -----------------------------------------
 
             total -= 0.03 * stability_penalty
@@ -474,6 +548,9 @@ class AdaptiveTransportAviary(BaseAviary):
         return float(total)
 
     def _computeTerminated(self):
+        """Crash (below the floor), flip (|roll| or |pitch| > 90 deg), or, in
+        the final task, the payload more than 1 m from the hook while the
+        goal waypoint is active."""
 
         for i in range(self.NUM_DRONES):
 
@@ -501,7 +578,7 @@ class AdaptiveTransportAviary(BaseAviary):
                 if (
                     self.current_waypoint_idx[i]
                     == len(self.WAYPOINTS) - 1
-                    and payload_error > 0.2
+                    and payload_error > 1
                 ):
                     return True
 
