@@ -380,6 +380,7 @@ def make_director_env(render_on, safety_filter=False):
     env.MIN_PAYLOAD_RADIUS, env.MAX_PAYLOAD_RADIUS = 0.02, 0.04
     env.GOAL_RANDOM_AMPLITUDE = 1.5
     env.PAYLOAD_TERMINATION = True
+    env.RANDOM_ORIENTATION = True      # random initial yaw
     return env
 
 

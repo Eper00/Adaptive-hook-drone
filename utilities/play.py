@@ -82,7 +82,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         steps = 0
         # Final curriculum level (as in utilities/learn.py)
         if curriculum_flag == True and (isinstance(env, AdaptiveTransportAviary) or isinstance(env, AdaptiveTransportDirectorAviary)):
-            env.RANDOM_ORIENTATION = True   # (not used by the transport envs)
+            env.RANDOM_ORIENTATION = True   # random initial yaw
             env.GRAB_FLAG_ENABLE=True
             env.MIN_PAYLOAD_MASS=0.01
             env.MAX_PAYLOAD_MASS=0.25
@@ -119,7 +119,6 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                
             elif env_type in ("adaptive_director", "adaptive_director_MPC", "adaptive_director_safety"):
                 time.sleep(0.01)
-            
             env.render()
             
             if mpc_flag:

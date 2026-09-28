@@ -36,7 +36,7 @@ def adjust_difficulty(env, level,level_changed=True):
          termination when the payload is lost), goal amplitude 1.5 m
     Velocity:
       0  no payload
-      1  light payload in ~50 % of the episodes, random start position
+      1  light payload in ~50 % of the episodes, random initial yaw
       2  full payload range
 
     Note: the wrapper only calls this after a level change, so level 0 runs
