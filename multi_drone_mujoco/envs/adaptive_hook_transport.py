@@ -14,7 +14,8 @@ Observation (35): [pos(3), rpy(3), vel(3), ang_vel(3), active waypoint - pos(3),
 
 Curriculum flags (set from utilities/learn.py):
   GRAB_FLAG_ENABLE     the payload has to be picked up (else: waypoints only)
-  PAYLOAD_TERMINATION  final task: random start position, 4 waypoints
+  RANDOM_ORIENTATION   random initial yaw in [-pi, pi) (else yaw 0)
+  PAYLOAD_TERMINATION  final task: 4 waypoints
                        (take-off, pre-grasp above the payload, grasp, goal)
                        and termination when the payload is lost at the goal
 """
@@ -109,21 +110,21 @@ class AdaptiveTransportAviary(BaseAviary):
         )
 
     def reset(self, seed=None, options=None):
-        """Draw a new scenario: start position, payload (position, height,
-        mass, radius), goal, and build the waypoints from them."""
+        """Draw a new scenario: initial yaw, payload (position, height, mass,
+        radius), goal, and build the waypoints from them."""
         self.GRAB_FLAG = False
-        # The drone always starts level with yaw 0 (the hook curls in the
-        # body y-z plane); with PAYLOAD_TERMINATION its start position is
-        # randomized instead.
         self.INIT_RPYS[0][:] = 0.0
         super().reset(seed=seed, options=options)
-        if self.RANDOM_ORIENTATION:
-            self.INIT_RPYS[0][2] = self.np_random.uniform(0,2*np.pi)
+
         self.current_waypoint_idx[:] = 0
 
-      
+        # The drone starts level at the default position; with
+        # RANDOM_ORIENTATION its heading (yaw) is random. It is drawn after
+        # the seeded super().reset() and applied right away, so it holds for
+        # this episode and is reproducible with the seed.
+        yaw = self.np_random.uniform(-np.pi, np.pi) if self.RANDOM_ORIENTATION else 0.0
         start = np.array(self.DEFAULT_START, dtype=float)
-        self._place_drone(start)
+        self._place_drone(start, yaw)
 
         # Payload somewhere around, but not right below the drone
         while True:
@@ -234,13 +235,14 @@ class AdaptiveTransportAviary(BaseAviary):
 
         return self._computeObs(), self._computeInfo()
 
-    def _place_drone(self, position):
-        """Move the drone (level, yaw 0, at rest) to ``position`` after reset."""
+    def _place_drone(self, position, yaw=0.0):
+        """Move the drone (level, heading ``yaw``, at rest) to ``position`` after reset."""
         self.INIT_XYZS[0] = position
+        self.INIT_RPYS[0][:] = [0.0, 0.0, yaw]
         joint = self.model.joint("drone0_joint")
         adr = self.model.jnt_qposadr[joint.id]
         self.data.qpos[adr:adr + 3] = position
-        self.data.qpos[adr + 3:adr + 7] = [1.0, 0.0, 0.0, 0.0]
+        self.data.qpos[adr + 3:adr + 7] = [np.cos(yaw / 2), 0.0, 0.0, np.sin(yaw / 2)]
         self.data.qvel[self.model.jnt_dofadr[joint.id]:self.model.jnt_dofadr[joint.id] + 6] = 0.0
         mujoco.mj_forward(self.model, self.data)
         self._updateAndStoreKinematicInformation()

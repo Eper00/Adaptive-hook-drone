@@ -103,6 +103,19 @@ def measure_swing(env):
     return th, th_dot
 
 
+def world_tilt(env):
+    """Heading-independent tilt [roll_w, pitch_w] of the drone.
+
+    Computed from the direction of the body z axis in the world frame, so it
+    describes the tilt about the world x / y axes: equal to (roll, pitch) at
+    yaw 0 (where the model was identified: world x motion <-> pitch, world y
+    motion <-> roll), and still consistent with the world-frame velocities
+    when the drone is rotated.
+    """
+    z = env.data.xmat[env.model.body("drone0").id].reshape(3, 3)[:, 2]
+    return np.array([-np.arctan2(z[1], z[2]), np.arctan2(z[0], z[2])])
+
+
 class StateTracker:
     """Builds the 23-dim MPC state from MuJoCo measurements + input history."""
 
@@ -110,7 +123,7 @@ class StateTracker:
         self.env = env
         self.v_prev = env.vel[0].copy()
         self.c_prev = filter_state(env)
-        self.att_prev = env.rpy[0, 0:2].copy()
+        self.att_prev = world_tilt(env)
 
     def measure(self, attached):
         env = self.env
@@ -122,7 +135,7 @@ class StateTracker:
         x[CP] = self.c_prev
         if attached:
             x[TH], x[THD] = measure_swing(env)
-        x[ATT] = env.rpy[0, 0:2]
+        x[ATT] = world_tilt(env)
         x[ATTP] = self.att_prev
         return x
 
@@ -807,7 +820,7 @@ def make_identification_env(seed):
         AdaptiveTransportDirectorAviary,
     )
     env = AdaptiveTransportDirectorAviary()
-    env.PAYLOAD_TERMINATION = True       # 4 waypoints + random start position
+    env.PAYLOAD_TERMINATION = True       # 4 waypoints (pre-grasp included)
     env.np_random, _ = seeding.np_random(seed)
     env.reset(seed=seed)
     env.prev_action = None

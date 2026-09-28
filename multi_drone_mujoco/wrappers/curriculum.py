@@ -44,7 +44,7 @@ class CurriculumConfig:
     start_level: int = 0
     advance_count: int = 1
     """
-    """Adaptive transport:"""
+    """Adaptive transport:
 
     metric: str = "reward"
     threshold_advance: float = 1000
@@ -54,14 +54,14 @@ class CurriculumConfig:
     start_level: int = 0
     advance_count: int = 1
     
-    """Adaptive velocity:
+    Adaptive velocity:"""
     metric: str = "reward"
     threshold_advance: float = 110
     threshold_retreat: float = -1000
     window_size: int = 20
     num_levels: int = 3
     start_level: int = 0
-    advance_count: int = 1"""
+    advance_count: int = 1
     
 class CurriculumWrapper(gym.Wrapper):
     """Gymnasium wrapper that implements automatic curriculum learning.

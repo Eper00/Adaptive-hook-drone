@@ -24,8 +24,7 @@ class AdaptiveVelocityAviary(BaseAviary):
 
     Flags set by the curriculum:
       GRAB_FLAG_ENABLE    payload in ~50 % of the episodes (PAYLOAD_INDICATOR)
-      RANDOM_OREINTATION  randomize the start position (x, y); the heading
-                          always starts at yaw 0 (the name is historical)
+      RANDOM_OREINTATION  random initial yaw in [-pi, pi) (the target yaw is 0)
     """
 
     def __init__(
@@ -58,7 +57,7 @@ class AdaptiveVelocityAviary(BaseAviary):
         self.tendon_orientation=0         # curl side of the hook (+1 / -1)
         self.PAYLOAD_INDICATOR=None       # < 0.5: this episode carries a payload
         self.GRAB_FLAG_ENABLE=False
-        self.RANDOM_OREINTATION = False   # randomize the start position (x, y)
+        self.RANDOM_OREINTATION = False   # random initial yaw
         if initial_xyzs is None:
             # high up: no ground in the way while tracking velocities
             initial_xyzs = np.array([[0.0, 0.0, 12.8]])
@@ -81,7 +80,7 @@ class AdaptiveVelocityAviary(BaseAviary):
             transport_target=True
         )
     def reset(self, seed=None, options=None):
-        """Draw the target velocity, the start position and (optionally) a
+        """Draw the target velocity, the initial yaw and (optionally) a
         payload that already hangs in the closed hook."""
 
         super().reset(seed=seed, options=options)
@@ -102,16 +101,17 @@ class AdaptiveVelocityAviary(BaseAviary):
                 # Full range
                 self.TARGET_VEL = self.np_random.uniform(-1.0, 1.0, size=3)
             self.TARGET_ORIENTATION = 0
-        # The drone always starts level with yaw 0; RANDOM_OREINTATION now
-        # randomizes the start position (x, y) instead of the heading.
-        self.INIT_RPYS[0][:] = 0.0
-        if self.RANDOM_OREINTATION:
-            joint = self.model.joint("drone0_joint")
-            adr = self.model.jnt_qposadr[joint.id]
-            self.data.qpos[adr:adr + 2] = self.INIT_XYZS[0][0:2] + self.np_random.uniform(-1, 1, size=2)
-            self.data.qpos[adr + 3:adr + 7] = [1.0, 0.0, 0.0, 0.0]
-            mujoco.mj_forward(self.model, self.data)
-            self._updateAndStoreKinematicInformation()
+        # The drone starts level at the default position; with
+        # RANDOM_OREINTATION its heading (yaw) is random (the target yaw
+        # stays 0, so the policy has to turn). Drawn after the seeded
+        # super().reset() and applied right away.
+        yaw = self.np_random.uniform(-np.pi, np.pi) if self.RANDOM_OREINTATION else 0.0
+        self.INIT_RPYS[0][:] = [0.0, 0.0, yaw]
+        joint = self.model.joint("drone0_joint")
+        adr = self.model.jnt_qposadr[joint.id]
+        self.data.qpos[adr + 3:adr + 7] = [np.cos(yaw / 2), 0.0, 0.0, np.sin(yaw / 2)]
+        mujoco.mj_forward(self.model, self.data)
+        self._updateAndStoreKinematicInformation()
         
 
         # Payload in about half of the episodes when enabled
