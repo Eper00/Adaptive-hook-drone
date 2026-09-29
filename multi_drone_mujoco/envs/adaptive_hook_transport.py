@@ -120,8 +120,8 @@ class AdaptiveTransportAviary(BaseAviary):
 
         # The drone starts level at the default position; with
         # RANDOM_ORIENTATION its heading (yaw) is random. It is drawn after
-        # the seeded super().reset() and applied right away, so it holds for
-        # this episode and is reproducible with the seed.
+        # the seeded super().reset(), so the scenario is reproducible with
+        # the seed.
         yaw = self.np_random.uniform(-np.pi, np.pi) if self.RANDOM_ORIENTATION else 0.0
         start = np.array(self.DEFAULT_START, dtype=float)
         self._place_drone(start, yaw)
@@ -134,35 +134,38 @@ class AdaptiveTransportAviary(BaseAviary):
             if abs(x - start[0]) > 0.2 or abs(y - start[1]) > 0.2:
                 break
         # Z sets the payload height: cylinder centre at Z - 0.245 above the floor
-        self.Z=self.np_random.uniform(0.45, 0.8)
-        self.TARGET_POSITION = np.array([
-            x,
-            y,
-            self.Z,
-        ])
+        z = self.np_random.uniform(0.45, 0.8)
+        goal_x = self.np_random.uniform(-self.GOAL_RANDOM_AMPLITUDE, self.GOAL_RANDOM_AMPLITUDE)
+        goal_y = self.np_random.uniform(-self.GOAL_RANDOM_AMPLITUDE, self.GOAL_RANDOM_AMPLITUDE)
+        mass = self.np_random.uniform(self.MIN_PAYLOAD_MASS, self.MAX_PAYLOAD_MASS)
+        radius = self.np_random.uniform(self.MIN_PAYLOAD_RADIUS, self.MAX_PAYLOAD_RADIUS)
+        self.set_scenario((x, y, z), (goal_x, goal_y, 1.0), mass, radius)
 
-        self.GOAL_POSITION = np.array([
-            self.np_random.uniform(
-                -self.GOAL_RANDOM_AMPLITUDE,
-                self.GOAL_RANDOM_AMPLITUDE,
-            ),
-            self.np_random.uniform(
-                -self.GOAL_RANDOM_AMPLITUDE,
-                self.GOAL_RANDOM_AMPLITUDE,
-            ),
-            1.0,
-        ])
+        return self._computeObs(), self._computeInfo()
+
+    def set_scenario(self, target_position, goal_position, mass, radius, yaw=None):
+        """Place the payload and the goal of a scenario and build the waypoints.
+
+        Called by reset() with the randomly drawn values. It can also be
+        called right after reset() to replay a given scenario (e.g. the same
+        payload and goal for several controllers); ``yaw`` then re-places
+        the drone at the start with that heading (None: keep it).
+
+        target_position: (x, y, Z) of the payload; Z sets its height (the
+                         cylinder centre is at Z - 0.245 above the floor)
+        goal_position:   drop-off point (x, y, z)
+        mass, radius:    payload (holder) mass [kg] and cylinder radius [m]
+        """
+        if yaw is not None:
+            self._place_drone(np.array(self.DEFAULT_START, dtype=float), yaw)
+        self.Z = float(target_position[2])
+        self.TARGET_POSITION = np.array(target_position, dtype=float)
+        self.GOAL_POSITION = np.array(goal_position, dtype=float)
 
         self.model.site_pos[self.goal_id] = self.GOAL_POSITION   # green goal marker
 
-        self.MASS = self.np_random.uniform(
-            self.MIN_PAYLOAD_MASS,
-            self.MAX_PAYLOAD_MASS,
-        )
-        self.RADIUS = self.np_random.uniform(
-            self.MIN_PAYLOAD_RADIUS,
-            self.MAX_PAYLOAD_RADIUS,
-        )
+        self.MASS = float(mass)
+        self.RADIUS = float(radius)
 
         # Payload resting on the floor: the holder plate (half height 0.005)
         # hangs 0.25 - Z below the cylinder, so the cylinder centre is at
@@ -231,9 +234,7 @@ class AdaptiveTransportAviary(BaseAviary):
         self.model.geom_size[self.right_connector_geom_id] = connector_size
 
         mujoco.mj_forward(self.model, self.data)
-
-
-        return self._computeObs(), self._computeInfo()
+        self._updateAndStoreKinematicInformation()
 
     def _place_drone(self, position, yaw=0.0):
         """Move the drone (level, heading ``yaw``, at rest) to ``position`` after reset."""

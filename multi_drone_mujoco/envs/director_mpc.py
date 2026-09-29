@@ -36,6 +36,8 @@ State (23):  [p(3), v(3), v_prev(3), c(3), c_prev(3), theta(2), theta_dot(2),
 Input (3):   velocity command a in [-1, 1]^3 (env action[0:3]).
 """
 
+import contextlib
+import io
 import time
 from dataclasses import dataclass
 
@@ -52,6 +54,28 @@ P, V, VP, C, CP, TH, THD, ATT, ATTP = (
     slice(15, 17), slice(17, 19), slice(19, 21), slice(21, 23))
 # State index of the tilt driven by each horizontal axis: x -> pitch, y -> roll
 TILT_OF_AXIS = {0: 20, 1: 19}
+
+
+class _Discard(io.TextIOBase):
+    def write(self, s):
+        return len(s)
+
+
+_DISCARD = _Discard()
+
+
+def quiet_qp(qp, **kwargs):
+    """Solve a qpOASES QP (CasADi conic) without its console messages.
+
+    For the QPs that are allowed to be infeasible (constrained MPC QP with an
+    unconstrained fallback, the safety filter's certification QP), an
+    infeasible result is an answer, not an error: the caller checks
+    ``qp.stats()["success"]``. qpOASES still reports it ("ERROR: Premature
+    homotopy termination because QP is infeasible", ...) whenever its global
+    message handler is visible, and CasADi routes that through sys.stdout.
+    """
+    with contextlib.redirect_stdout(_DISCARD):
+        return qp(**kwargs)
 
 
 ################################################################################
@@ -430,6 +454,16 @@ class DirectorModel:
             X[:, k + 1] = self.step(X[:, k], U[:, k], dist)
         return X
 
+    def casadi_step(self):
+        """CasADi function F(x, u, d) -> x_next (same as ``step``; used by the
+        model-agnostic safety filter)."""
+        x = ca.SX.sym("x", NX)
+        u = ca.SX.sym("u", NU)
+        d = ca.SX.sym("d", 3)
+        x_next = (ca.mtimes(ca.DM(self.A), x) + ca.mtimes(ca.DM(self.B), u) + ca.DM(self.f)
+                  + ca.mtimes(ca.DM(self.disturbance_map()), d))
+        return ca.Function("F_arx", [x, u, d], [x_next])
+
 
 def save_models(path, axes, tilts, alpha, dt):
     """axes[mode] = [x, y, z] AxisModel, tilts[mode] = [x, y] TiltModel."""
@@ -564,9 +598,9 @@ class DirectorMPC:
         g = pre["Gamma"].T @ (pre["Q"] * err) - self.w.du * pre["D"].T @ e_prev
 
         rows = pre["tilt_rows"]
-        sol = self._qp_con(h=pre["H"], g=g, a=pre["Gamma"][rows],
-                           lba=-self.max_tilt - free[rows], uba=self.max_tilt - free[rows],
-                           lbx=-self.u_max, ubx=self.u_max)
+        sol = quiet_qp(self._qp_con, h=pre["H"], g=g, a=pre["Gamma"][rows],
+                       lba=-self.max_tilt - free[rows], uba=self.max_tilt - free[rows],
+                       lbx=-self.u_max, ubx=self.u_max)
         ok = self._qp_con.stats()["success"]
         fallback = not ok
         if fallback:
@@ -584,161 +618,6 @@ class DirectorMPC:
         return X, U, {"solve_time": time.perf_counter() - t0, "qp_failures": int(not ok),
                       "constraint_fallbacks": int(fallback),
                       "max_tilt_pred": float(np.abs(X[ATT, 1:]).max())}
-
-
-################################################################################
-# PREDICTIVE SAFETY FILTER
-################################################################################
-
-@dataclass
-class SafetyConstraints:
-    """Constraints the safety filter keeps over its prediction horizon."""
-    max_tilt: float = np.radians(30.0)   # |roll|, |pitch| [rad]
-    max_swing: float = np.radians(30.0)  # |payload swing| per axis [rad] (with payload)
-    max_speed: float = 1.0               # |v| per axis [m/s]
-    min_altitude: float = 0.3            # drone height [m]
-
-
-class SafetyFilter(DirectorMPC):
-    """Predictive safety filter around a velocity-command controller.
-
-    Every step the proposed command u_rl (e.g. of the RL director) is checked
-    with the identified closed-loop model: it is *certified* if, applied now,
-    there exists a continuation of commands (warm started with u_rl) that
-    keeps all constraints over the horizon. A certified command is applied
-    unchanged. Otherwise the MPC takes over and applies the first command of
-
-        min  w0 |u_0 - u_rl|^2 + w1 sum_k |u_k - u_rl|^2 + w_du |du|^2 + rho(s)
-        s.t. constraints relaxed by slacks s >= 0 (one per constraint type)
-
-    i.e. the admissible command closest to the proposal; the slacks keep the
-    problem feasible when a violation cannot be avoided any more, and are
-    penalized heavily so they are only used then.
-    """
-
-    GROUPS = ("tilt", "swing", "speed", "altitude")
-
-    def __init__(self, models, horizon=30, constraints=None, u_max=1.0,
-                 disturbance_gain=0.05, w0=1.0, w1=0.1, w_du=0.5,
-                 slack_weight=1e4, slack_linear=1e3):
-        super().__init__(models, horizon=horizon, u_max=u_max,
-                         disturbance_gain=disturbance_gain)
-        self.c = constraints or SafetyConstraints()
-        self.w0, self.w1, self.w_du = w0, w1, w_du
-        self.rho, self.rho1 = slack_weight, slack_linear
-        self._con = [self._constraint_rows(m) for m in (0, 1)]
-        self._check_qp, self._safe_qp = [], []
-        nz = NU * horizon
-        opts = {"printLevel": "none", "error_on_fail": False}
-        for mode in (0, 1):
-            m = len(self._con[mode]["rows"])
-            ng = len(self.GROUPS)
-            self._check_qp.append(ca.conic(
-                f"check{mode}", "qpoases",
-                {"h": ca.Sparsity.dense(nz, nz), "a": ca.Sparsity.dense(m, nz)}, opts))
-            self._safe_qp.append(ca.conic(
-                f"safe{mode}", "qpoases",
-                {"h": ca.Sparsity.dense(nz + ng, nz + ng),
-                 "a": ca.Sparsity.dense(2 * m, nz + ng)}, opts))
-        D = np.eye(nz) - np.eye(nz, k=-NU)
-        track = np.full(nz, self.w1)
-        track[:NU] = self.w0
-        self._D = D
-        self._H_check = np.diag(np.r_[np.zeros(NU), np.full(nz - NU, self.w1)]) + self.w_du * D.T @ D
-        H = np.zeros((nz + ng, nz + ng))
-        H[:nz, :nz] = np.diag(track) + self.w_du * D.T @ D
-        H[nz:, nz:] = self.rho * np.eye(ng)
-        self._H_safe = H
-        self._track = track
-        self.last = {}
-
-    def _constraint_rows(self, mode):
-        """State rows, bounds and constraint group of every constraint k=1..N."""
-        c, big = self.c, 1e3
-        per_step = [(19, -c.max_tilt, c.max_tilt, 0), (20, -c.max_tilt, c.max_tilt, 0)]
-        if mode == 1:
-            per_step += [(15, -c.max_swing, c.max_swing, 1), (16, -c.max_swing, c.max_swing, 1)]
-        per_step += [(3 + i, -c.max_speed, c.max_speed, 2) for i in range(3)]
-        per_step += [(2, c.min_altitude, big, 3)]
-        rows, lb, ub, group = [], [], [], []
-        for k in range(self.N):
-            for idx, lo, hi, g in per_step:
-                rows.append(k * NX + idx)
-                lb.append(lo)
-                ub.append(hi)
-                group.append(g)
-        rows = np.array(rows)
-        G = self._pre[mode]["Gamma"][rows]
-        E = np.zeros((len(rows), len(self.GROUPS)))
-        E[np.arange(len(rows)), group] = 1.0
-        return dict(rows=rows, lb=np.array(lb), ub=np.array(ub), G=G, E=E)
-
-    def reset(self):
-        super().reset()
-        self.last = {}
-
-    def filter(self, mode, x0, u_rl, u_prev=None):
-        """Return (applied command, info). ``info['intervened']`` tells whether
-        the MPC replaced the proposed command."""
-        t0 = time.perf_counter()
-        self._update_disturbance(mode, x0)
-        pre, con, model, N = self._pre[mode], self._con[mode], self.models[mode], self.N
-        u_rl = np.clip(np.asarray(u_rl, float), -self.u_max, self.u_max)
-        u_prev = u_rl if u_prev is None else np.asarray(u_prev, float)
-        offset = model.f + model.disturbance_map() @ self.dist
-        free = pre["Phi"] @ x0 + pre["S"] @ offset
-        c = free[con["rows"]]
-        lo, hi = con["lb"] - c, con["ub"] - c
-        u_ref = np.tile(u_rl, N)
-        e_prev = np.zeros(NU * N)
-        e_prev[:NU] = u_prev
-
-        # 1) certification: u_0 = u_rl fixed, is there an admissible continuation?
-        lbx = np.full(NU * N, -self.u_max)
-        ubx = np.full(NU * N, self.u_max)
-        lbx[:NU] = ubx[:NU] = u_rl
-        g = -np.r_[np.zeros(NU), np.full(NU * (N - 1), self.w1)] * u_ref \
-            - self.w_du * self._D.T @ e_prev
-        qp = self._check_qp[mode]
-        sol = qp(h=self._H_check, g=g, a=con["G"], lba=lo, uba=hi, lbx=lbx, ubx=ubx, x0=u_ref)
-        U = np.asarray(sol["x"]).ravel()
-        certified = bool(qp.stats()["success"]) and np.all(np.isfinite(U))
-        if certified:
-            y = con["G"] @ U
-            certified = bool(np.all(y >= lo - 1e-4) and np.all(y <= hi + 1e-4))
-
-        slack = np.zeros(len(self.GROUPS))
-        if certified:
-            u_apply = u_rl
-        else:
-            # 2) intervention: closest admissible command (soft constraints)
-            ng = len(self.GROUPS)
-            A = np.block([[con["G"], -con["E"]], [con["G"], con["E"]]])
-            inf = 1e20
-            lba = np.r_[np.full(len(lo), -inf), lo]
-            uba = np.r_[hi, np.full(len(hi), inf)]
-            g = np.r_[-self._track * u_ref - self.w_du * self._D.T @ e_prev,
-                      np.full(ng, self.rho1)]
-            qp = self._safe_qp[mode]
-            sol = qp(h=self._H_safe, g=g, a=A, lba=lba, uba=uba,
-                     lbx=np.r_[np.full(NU * N, -self.u_max), np.zeros(ng)],
-                     ubx=np.r_[np.full(NU * N, self.u_max), np.full(ng, inf)],
-                     x0=np.r_[u_ref, np.zeros(ng)])
-            z = np.asarray(sol["x"]).ravel()
-            if qp.stats()["success"] and np.all(np.isfinite(z)):
-                U = z[:NU * N]
-                slack = z[NU * N:]
-                u_apply = U[:NU].copy()
-            else:                                   # should not happen (soft QP)
-                U = np.tile(np.zeros(NU), N)
-                u_apply = np.zeros(NU)
-        U_plan = U.reshape(N, NU).T
-        X = model.rollout(x0, U_plan, self.dist)
-        self._last = (mode, x0.copy(), u_apply.copy())
-        self.last = {"intervened": not certified, "u_rl": u_rl, "u_applied": u_apply,
-                     "slack": slack, "X_pred": X, "U_plan": U_plan,
-                     "solve_time": time.perf_counter() - t0}
-        return u_apply, self.last
 
 
 ################################################################################
@@ -880,38 +759,17 @@ def collect(seed, hold_time=8.0, excite=0.15, max_time=45.0, verbose=True):
     return out
 
 
-def identify(model_file=DEFAULT_MODEL_FILE, seeds=IDENT_SEEDS, verbose=True):
-    """Collect data, fit the velocity, swing and attitude models of both
-    modes, save them to ``model_file`` and return the loaded models."""
-    import os
+def fit_director_models(runs, masks, alpha, dt, verbose=True):
+    """Fit the velocity, swing and attitude models of both modes.
 
-    from multi_drone_mujoco.envs.mpc_mission import CONTACT_PHASES
-
-    if verbose:
-        print("Collecting identification data (P-controller + excitation)...")
-    runs = [collect(s, verbose=verbose) for s in seeds]
-    env = make_identification_env(0)
-    alpha, dt = env.alpha, env.CTRL_TIMESTEP
-    env.close()
-
-    # Concatenate the runs; the mask removes samples of the other mode, the
-    # hook-contact phases and the joints between runs.
+    runs:  sequences with the measured states "x" (T, NX)
+    masks: masks[mode][i] = boolean (T_i,) samples of run i usable for mode
+    Returns the DirectorModel of each mode.
+    """
     X = np.concatenate([r["x"] for r in runs])
-    masks = []
-    for mode in (0, 1):
-        ms = []
-        for r in runs:
-            att = r["attached"].astype(bool)
-            contact = np.isin(r["phase"], CONTACT_PHASES)
-            m = (att if mode == 1 else (~att & ~contact)).copy()
-            m[:3] = False
-            m[-3:] = False
-            ms.append(m)
-        masks.append(np.concatenate(ms))
-
     axes_all, tilts_all = [], []
     for mode in (0, 1):
-        mask = masks[mode]
+        mask = np.concatenate(masks[mode])
         if verbose:
             print(f"mode {mode} ({mask.sum()} samples), multi-step (0.5 s) RMS fit error:")
         axes, tilts = [], []
@@ -933,6 +791,35 @@ def identify(model_file=DEFAULT_MODEL_FILE, seeds=IDENT_SEEDS, verbose=True):
                     print(f"   {'pitch' if i == 0 else 'roll'}: rms={np.degrees(rms_t):.3f} deg")
         axes_all.append(axes)
         tilts_all.append(tilts)
+    return axes_all, tilts_all
+
+
+def identify(model_file=DEFAULT_MODEL_FILE, seeds=IDENT_SEEDS, verbose=True):
+    """Collect data, fit the velocity, swing and attitude models of both
+    modes, save them to ``model_file`` and return the loaded models."""
+    import os
+
+    from multi_drone_mujoco.envs.mpc_mission import CONTACT_PHASES
+
+    if verbose:
+        print("Collecting identification data (P-controller + excitation)...")
+    runs = [collect(s, verbose=verbose) for s in seeds]
+    env = make_identification_env(0)
+    alpha, dt = env.alpha, env.CTRL_TIMESTEP
+    env.close()
+
+    # The masks remove samples of the other mode, the hook-contact phases and
+    # the joints between runs.
+    masks = [[], []]
+    for r in runs:
+        att = r["attached"].astype(bool)
+        contact = np.isin(r["phase"], CONTACT_PHASES)
+        for mode in (0, 1):
+            m = (att if mode == 1 else (~att & ~contact)).copy()
+            m[:3] = False
+            m[-3:] = False
+            masks[mode].append(m)
+    axes_all, tilts_all = fit_director_models(runs, masks, alpha, dt, verbose)
 
     os.makedirs(os.path.dirname(model_file) or ".", exist_ok=True)
     save_models(model_file, axes_all, tilts_all, alpha, dt)

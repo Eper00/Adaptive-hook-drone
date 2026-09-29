@@ -27,11 +27,12 @@ GRASP_HEIGHT = 0.225             # drone height above the cylinder centre
 HOOK_LENGTH = 0.433              # drone COM -> hook tip (straight hook)
 TIP_FLOOR_CLEARANCE = 0.03
 APPROACH_HEIGHT = 0.35           # extra height while moving next to the payload
-LIFT_HEIGHT = 0.4
 TENDON_CLOSE = 1.0               # tendon command that closes the hook (full curl)
 TENDON_RAMP_TIME = 0.5
 HOLD_TIME = 4.0                  # hover at the goal before the mission ends
-CONTACT_PHASES = ("close", "lift")  # hook touches the payload on its stand
+# phases in which the hook touches the payload while it still rests on its
+# stand (before it counts as attached)
+CONTACT_PHASES = ("close", "transport")
 
 
 def grasp_pose(payload_center, radius):
@@ -83,12 +84,23 @@ class Segment:
 class Mission:
     """Phase logic of the pick-and-place task.
 
-    Phases: takeoff -> approach -> pre_grasp -> descend -> close -> lift
-            -> transport -> hold
+    The MPC flies exactly the environment's waypoints, like the RL policies:
+
+        takeoff   -> WAYPOINTS[0]            (take-off point)
+        pre_grasp -> pre-grasp waypoint      (grasp pose + APPROACH_HEIGHT)
+        descend   -> GRASP_POSITION          (grasp waypoint)
+        close     -  stay, the tendon closes the hook
+        transport -> GOAL_POSITION           (goal waypoint; the payload is
+                                              lifted off its stand on the way)
+        hold      -  hover at the goal for HOLD_TIME
+
+    With PAYLOAD_TERMINATION the env has exactly these 4 waypoints. Without
+    it the env has no pre-grasp waypoint; the MPC still stops above the grasp
+    pose so that the hook comes down vertically next to the payload.
     """
 
-    SPEED = {"takeoff": 0.5, "approach": 0.5, "pre_grasp": 0.3, "descend": 0.12,
-             "close": 0.1, "lift": 0.25, "transport": 0.4, "hold": 0.1}
+    SPEED = {"takeoff": 0.8, "pre_grasp": 0.7, "descend": 0.2,
+             "close": 0.1, "transport": 0.4, "hold": 0.1}
 
     def __init__(self, env, tendon_hold=TENDON_CLOSE):
         self.env = env
@@ -103,16 +115,16 @@ class Mission:
         self.visited = []
 
     def _plan_grasp(self):
+        """Targets of the remaining phases = the env's waypoints."""
         env = self.env
         a = env.target_qpos_adr
-        c = env.data.qpos[a:a + 3].copy()
-        self.payload_rest = c
-        grasp = grasp_pose(c, env.RADIUS)
-        self.targets["approach"] = grasp + np.array([0.0, 0.2, APPROACH_HEIGHT])
-        self.targets["pre_grasp"] = grasp + np.array([0.0, 0.0, APPROACH_HEIGHT])
+        self.payload_rest = env.data.qpos[a:a + 3].copy()
+        grasp = np.array(env.GRASP_POSITION, float)
+        wps = np.asarray(env.WAYPOINTS, float)
+        self.targets["pre_grasp"] = (wps[1] if len(wps) == 4
+                                     else grasp + np.array([0.0, 0.0, APPROACH_HEIGHT]))
         self.targets["descend"] = grasp
         self.targets["close"] = grasp
-        self.targets["lift"] = grasp + np.array([0.0, 0.0, LIFT_HEIGHT])
         self.targets["transport"] = np.array(env.GOAL_POSITION, float)
         self.targets["hold"] = np.array(env.GOAL_POSITION, float)
 
@@ -150,8 +162,6 @@ class Mission:
         if ph == "takeoff" and settled(0.05, 0.1):
             self.visited.append(("takeoff", t))
             self._plan_grasp()
-            self._enter("approach", t, x[0:3])
-        elif ph == "approach" and settled(0.05, 0.15):
             self._enter("pre_grasp", t, x[0:3])
         elif ph == "pre_grasp" and settled(0.015, 0.05, 0.3):
             self._enter("descend", t, x[0:3])
@@ -160,13 +170,11 @@ class Mission:
             self._enter("close", t, x[0:3])
         elif ph == "close":
             self.tendon = TENDON_CLOSE * min(1.0, (t - self.phase_start) / TENDON_RAMP_TIME)
-            # Lift right after closing: while the payload still rests on its
+            # Leave right after closing: while the payload still rests on its
             # stand the closed hook levers the drone against it.
             if t - self.phase_start > TENDON_RAMP_TIME:
-                self._enter("lift", t, x[0:3])
-        elif ph == "lift" and settled(0.05, 0.1):
-            self.tendon = self.tendon_hold
-            self._enter("transport", t, x[0:3])
+                self.tendon = self.tendon_hold
+                self._enter("transport", t, x[0:3])
         elif ph == "transport" and settled(0.05, 0.1):
             self.visited.append(("goal", t))
             self._enter("hold", t, x[0:3])

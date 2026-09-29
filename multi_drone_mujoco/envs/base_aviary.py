@@ -1442,8 +1442,17 @@ class BaseAviary(gym.Env):
             Which drone to track/follow for "track" and "fpv" modes.
         """
         if self.render_mode == "human":
+            # The viewer shows a copy of the data: syncing the passive viewer
+            # on self.data rewrites solver arrays that the next mj_step reads,
+            # so rendered and headless runs of the same seed diverged (and the
+            # closed loop amplifies that into different outcomes). Mouse
+            # perturbations in the viewer therefore do not act on the sim.
             if self._viewer is None:
-                self._viewer = mujoco.viewer.launch_passive(self.model, self.data)
+                self._viewer_data = mujoco.MjData(self.model)
+                mujoco.mj_copyData(self._viewer_data, self.model, self.data)
+                self._viewer = mujoco.viewer.launch_passive(self.model, self._viewer_data)
+            with self._viewer.lock():
+                mujoco.mj_copyData(self._viewer_data, self.model, self.data)
             self._viewer.sync()
         elif self.render_mode == "rgb_array":
             if self._renderer is None:
