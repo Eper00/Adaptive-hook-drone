@@ -11,6 +11,9 @@ velocity       RL velocity controller (AdaptiveVelocityAviary)
 
 director       RL director (AdaptiveTransportDirectorAviary + velocity policy)
 director_mpc   Director MPC (DirectorMPCAgent) in the same environment
+director_resnet_mpc
+               Director MPC with the ResNet-identified model
+               (DirectorResNetMPCAgent) in the same environment
 director_safety
                RL director on AdaptiveTransportDirectorAviarySafetyFilter: the
                MPC safety filter checks every RL command and replaces it when
@@ -25,13 +28,24 @@ director_safety
                  episodes saved per outcome and plots of when and where the
                  failures happen
                * director_safety only: the RL proposal (green) and the command
-                 the MPC applied instead (magenta) are drawn when the filter
+                 the filter applied instead (magenta) are drawn when the filter
                  intervenes, the trail turns magenta there, and extra plots
-                 show when / where / how strongly the filter overrides the RL
+                 show when / where / how strongly and why (constraint, rate,
+                 stall takeover, hook-contact escape) the filter overrides
 
-compare        runs director, director_mpc and director_safety on the same
-               scenarios (same seeds) and compares their outcomes, timing,
-               attitude / swing and commands
+compare        runs director, director_mpc, director_resnet_mpc and
+               director_safety on the same scenarios (same seeds) and compares
+               their outcomes, timing, attitude / swing and commands
+
+scenario       one scenario (payload mass, radius, position, goal, heading)
+               flown by the RL director, the director MPC and the RL director
+               + safety filter (--methods to change the list). The scenario is
+               drawn with --seed or read from --scenario FILE, and can be
+               overridden with --mass --radius --payload --goal --yaw. Saves
+               scenario.json, results.json, one .npz per method and plots of
+               the trajectories, time series and a summary; --render shows
+               each run in the viewer, --video renders offscreen mp4s (one per
+               method + side by side, needs ffmpeg).
 
 All director tests use the same scenario for the same seed, so they can be
 compared episode by episode.
@@ -44,6 +58,9 @@ Usage
     python -m utilities.analyse --test director --episodes 3 --render
     python -m utilities.analyse --test director_safety --episodes 100
     python -m utilities.analyse --test compare --episodes 100
+    python -m utilities.analyse --test scenario --seed 3 --max_time 25 --video
+    python -m utilities.analyse --test scenario --mass 0.25 --radius 0.02 --payload 0.8 -0.6 --goal -1.2 1.0 --render
+    python -m utilities.analyse --test scenario --scenario results/analysis/scenario/seed_3/scenario.json
 
 Results (plots, per-episode .npz files, summary.csv) go to
 results/analysis/<test>/.
@@ -53,7 +70,12 @@ import argparse
 import csv
 import json
 import os
+import sys
 import time
+
+# offscreen video without a display: use EGL (must be set before importing mujoco)
+if "--video" in sys.argv and not os.environ.get("DISPLAY"):
+    os.environ.setdefault("MUJOCO_GL", "egl")
 
 import matplotlib
 import mujoco
@@ -63,14 +85,18 @@ from multi_drone_mujoco.envs.director_mpc import measure_swing
 from multi_drone_mujoco.envs.mpc_mission import payload_attached
 
 DEFAULT_MODELS = {
-    "velocity": "results/final/rl_adaptive_velocity_curriculum/best_model.zip",
-    "director": "results/final/rl_adaptive_director_curriculum/best_model.zip",
+    "velocity": "results/final/rl_adaptive_velocity_curriculum/final_model.zip",
+    "director": "results/final/rl_adaptive_director_curriculum/final_model.zip",
 }
 OUTCOMES = ["success", "payload", "stability", "unfinished"]
 OUTCOME_COLORS = {"success": "tab:green", "payload": "tab:orange",
                   "stability": "tab:red", "unfinished": "tab:gray"}
 STAGES = ["take-off", "pre-grasp", "grasp", "goal"]   # env waypoint index
 GOAL_TOLERANCE = 0.15      # [m] drone-goal distance counted as "goal reached"
+# why the safety filter overrode the controller (see the safety filter env)
+REASONS = ["none", "constraint", "rate", "stall", "contact"]
+REASON_COLORS = {"constraint": "tab:red", "rate": "tab:orange", "stall": "tab:blue",
+                 "contact": "tab:brown"}
 
 
 ################################################################################
@@ -151,14 +177,19 @@ class Overlay:
             return
         with self.env._viewer.lock():
             scene.ngeom = 0
-            for (p0, _, _), (p1, s1, i1) in zip(self.trail[:-1], self.trail[1:]):
-                self.segment(scene, p0, p1, (1.0, 0.0, 1.0, 1.0) if i1 else self.speed_color(s1),
-                             width=0.007 if i1 else 0.004)
-            green = command if proposal is None else proposal
-            self.arrow(scene, pos, np.asarray(green) * scale, (0.1, 0.9, 0.1, 1.0))
-            if intervened:
-                self.arrow(scene, pos, np.asarray(command) * scale, (1.0, 0.0, 1.0, 1.0))
-            self.arrow(scene, pos, np.asarray(velocity) * scale, (1.0, 0.85, 0.1, 1.0))
+            self.paint_director(scene, pos, command, velocity, scale, proposal, intervened)
+
+    def paint_director(self, scene, pos, command, velocity, scale=0.5, proposal=None,
+                       intervened=False):
+        """Draw the trail and the arrows into ``scene`` (viewer or offscreen)."""
+        for (p0, _, _), (p1, s1, i1) in zip(self.trail[:-1], self.trail[1:]):
+            self.segment(scene, p0, p1, (1.0, 0.0, 1.0, 1.0) if i1 else self.speed_color(s1),
+                         width=0.007 if i1 else 0.004)
+        green = command if proposal is None else proposal
+        self.arrow(scene, pos, np.asarray(green) * scale, (0.1, 0.9, 0.1, 1.0))
+        if intervened:
+            self.arrow(scene, pos, np.asarray(command) * scale, (1.0, 0.0, 1.0, 1.0))
+        self.arrow(scene, pos, np.asarray(velocity) * scale, (1.0, 0.85, 0.1, 1.0))
 
 
 def render(env, overlay_fn=None, realtime=True):
@@ -405,21 +436,32 @@ class RLDirector:
 
     def step(self):
         action, _ = self.model.predict(self.obs, deterministic=True)
+        # float64 as in the safety-filter env: with the float32 action the
+        # command filter differs by ~1e-8, which the closed loop amplifies, so
+        # RL and RL + filter would not fly the same until the first intervention
+        action = np.asarray(action, dtype=float)
         self.obs, _, terminated, truncated, info = self.env.step(action)
         proposal = np.clip(np.asarray(action[0:3], float), -1, 1)
         applied = np.asarray(info.get("u_applied", proposal), float)
         return applied, terminated, truncated, {
-            "cmd_rl": proposal, "intervened": bool(info.get("safety_intervened", False))}
+            "cmd_rl": proposal, "intervened": bool(info.get("safety_intervened", False)),
+            "reason": REASONS.index(info.get("safety_reason", "none"))}
 
 
 class MPCDirector:
-    """Director MPC agent (plans the same velocity commands)."""
+    """Director MPC agent (plans the same velocity commands); ``resnet=True``
+    uses the ResNet-identified model instead of the linear one."""
     name = "Director MPC"
 
-    def __init__(self, env):
-        from multi_drone_mujoco.envs.director_mpc import DirectorMPCAgent
+    def __init__(self, env, resnet=False):
         self.env = env
-        self.agent = DirectorMPCAgent(env)
+        if resnet:
+            from multi_drone_mujoco.envs.director_resnet_mpc import DirectorResNetMPCAgent
+            self.agent = DirectorResNetMPCAgent(env)
+            self.name = "Director ResNet-MPC"
+        else:
+            from multi_drone_mujoco.envs.director_mpc import DirectorMPCAgent
+            self.agent = DirectorMPCAgent(env)
 
     def reset(self, max_time):
         self.agent.max_time = max_time
@@ -429,7 +471,7 @@ class MPCDirector:
         _, _, terminated, truncated, _ = self.agent.step()
         cmd = (np.asarray(self.agent.log["u"][-1], float) if self.agent.log["u"]
                else np.zeros(3))
-        return cmd, terminated, truncated, {"cmd_rl": cmd, "intervened": False}
+        return cmd, terminated, truncated, {"cmd_rl": cmd, "intervened": False, "reason": 0}
 
 
 def classify(ep):
@@ -456,8 +498,13 @@ def classify(ep):
     return "unfinished", k_end
 
 
-def run_director_episode(controller, env, seed, max_time, render_on, overlay):
+def run_director_episode(controller, env, seed, max_time, render_on, overlay, scenario=None):
+    """One episode of a director controller. ``scenario`` (see
+    scenario_from_env) replays a given payload / goal / heading instead of
+    the one drawn with ``seed``."""
     env.reset(seed=seed)
+    if scenario is not None:
+        apply_scenario(env, scenario)
     controller.reset(max_time)
     a = env.target_qpos_adr
     payload_start = env.data.qpos[a:a + 3].copy()
@@ -465,7 +512,8 @@ def run_director_episode(controller, env, seed, max_time, render_on, overlay):
     rest_z = payload_start[2]
     dt = env.CTRL_TIMESTEP
     log = {k: [] for k in ("t", "p", "v", "rpy", "cmd", "cmd_filtered", "attached",
-                           "payload_pos", "waypoint", "cmd_rl", "intervened", "swing")}
+                           "payload_pos", "waypoint", "cmd_rl", "intervened", "swing",
+                           "reason", "qpos")}
     attached, crashed, t = False, False, 0.0
     overlay.reset()
     while t < max_time:
@@ -485,7 +533,9 @@ def run_director_episode(controller, env, seed, max_time, render_on, overlay):
         log["waypoint"].append(int(env.current_waypoint_idx[0]))
         log["cmd_rl"].append(extra["cmd_rl"])
         log["intervened"].append(extra["intervened"])
+        log["reason"].append(extra["reason"])
         log["swing"].append(measure_swing(env)[0] if attached else np.zeros(2))
+        log["qpos"].append(env.data.qpos.copy())
         if render_on:
             render(env, lambda: overlay.draw_director(cmd, v, proposal=extra["cmd_rl"],
                                                       intervened=extra["intervened"]))
@@ -505,6 +555,7 @@ def run_director_episode(controller, env, seed, max_time, render_on, overlay):
 CONTROLLERS = {
     "director": ("RL director", False),
     "director_mpc": ("Director MPC", False),
+    "director_resnet_mpc": ("Director ResNet-MPC", False),
     "director_safety": ("RL director + safety filter", True),
 }
 
@@ -512,8 +563,8 @@ CONTROLLERS = {
 def make_controller(kind, args):
     name, safety = CONTROLLERS[kind]
     env = make_director_env(args.render, safety_filter=safety)
-    if kind == "director_mpc":
-        controller = MPCDirector(env)
+    if kind in ("director_mpc", "director_resnet_mpc"):
+        controller = MPCDirector(env, resnet=kind == "director_resnet_mpc")
     else:
         controller = RLDirector(env, args.model_path or DEFAULT_MODELS["director"], name=name)
     return env, controller
@@ -540,8 +591,11 @@ def monte_carlo(kind, args, out):
             **{k: v for k, v in ep.items() if isinstance(v, np.ndarray)},
             **{k: ep[k] for k in ("seed", "crashed", "mass", "radius", "outcome",
                                   "event_time", "event_stage")})
-        extra = (f" | filter active {100 * ep['intervened'].mean():4.1f}% of steps"
-                 if CONTROLLERS[kind][1] else "")
+        extra = ""
+        if CONTROLLERS[kind][1]:
+            by_reason = ", ".join(f"{r} {100 * np.mean(ep['reason'] == REASONS.index(r)):.1f}%"
+                                  for r in REASON_COLORS)
+            extra = f" | filter active {100 * ep['intervened'].mean():4.1f}% ({by_reason})"
         print(f"  episode {n:4d} seed {seed}: {ep['outcome']:10s}"
               f" (t={ep['event_time']:5.1f}s, stage {ep['event_stage']}, m={ep['mass']:.2f} kg)"
               f" | success {counts['success']}/{n} = {counts['success'] / n:.2f}"
@@ -581,7 +635,7 @@ def director_test(args, kind):
 def compare_test(args):
     out = os.path.join(args.out, "compare")
     results = {}
-    for kind in ("director", "director_mpc", "director_safety"):
+    for kind in CONTROLLERS:
         name, episodes, counts = monte_carlo(kind, args, os.path.join(out, kind))
         results[kind] = (name, episodes, counts)
     files = plot_comparison(results, out)
@@ -791,6 +845,11 @@ def plot_payload_effect(episodes, name, out, before=3.0, after=6.0):
     return files
 
 
+def _outcome_patches():
+    from matplotlib.patches import Patch
+    return [Patch(color=OUTCOME_COLORS[o], label=o) for o in OUTCOMES]
+
+
 def _intervals(mask, t):
     """(start, end) times of the True runs of a boolean mask."""
     out, k = [], 0
@@ -810,7 +869,7 @@ def plot_interventions(episodes, name, out):
     """When, where and how strongly the MPC safety filter overrides the RL."""
     import matplotlib.pyplot as plt
 
-    from multi_drone_mujoco.envs.director_mpc import SafetyConstraints
+    from multi_drone_mujoco.envs.predictive_safety_filter import SafetyConstraints
 
     lim = SafetyConstraints()
     files = []
@@ -819,12 +878,10 @@ def plot_interventions(episodes, name, out):
     ax = axs[0, 0]
     for ep in episodes:
         ax.bar(ep["seed"], 100 * ep["intervened"].mean(), color=OUTCOME_COLORS[ep["outcome"]])
-    for o in OUTCOMES:
-        ax.bar([], [], color=OUTCOME_COLORS[o], label=o)
+    ax.legend(handles=_outcome_patches(), fontsize=8)
     ax.set_xlabel("seed")
     ax.set_ylabel("steps with intervention [%]")
     ax.set_title("How often the filter overrides the RL (per episode)")
-    ax.legend(fontsize=8)
 
     ax = axs[0, 1]
     width = 0.4
@@ -842,13 +899,16 @@ def plot_interventions(episodes, name, out):
     ax.legend(fontsize=8)
 
     ax = axs[1, 0]
-    d = np.concatenate([np.linalg.norm(ep["cmd"] - ep["cmd_rl"], axis=1)[ep["intervened"].astype(bool)]
-                        for ep in episodes])
-    if d.size:
-        ax.hist(d, bins=30, color="tab:purple")
+    reason = np.concatenate([ep["reason"] for ep in episodes])
+    diff = np.concatenate([np.linalg.norm(ep["cmd"] - ep["cmd_rl"], axis=1) for ep in episodes])
+    data = [diff[reason == REASONS.index(r)] for r in REASON_COLORS]
+    if any(len(d) for d in data):
+        ax.hist(data, bins=30, stacked=True, color=list(REASON_COLORS.values()),
+                label=[f"{r} ({len(d)} steps)" for r, d in zip(REASON_COLORS, data)])
+        ax.legend(fontsize=8)
     ax.set_xlabel("|applied - proposed| velocity command [m/s]")
     ax.set_ylabel("steps")
-    ax.set_title("How strongly the filter overrides")
+    ax.set_title("Why and how strongly the filter overrides")
 
     ax = axs[1, 1]
     t_max = max(ep["t"][-1] for ep in episodes)
@@ -875,7 +935,7 @@ def plot_interventions(episodes, name, out):
 
     # example: the episode with the most interventions
     ep = max(episodes, key=lambda e: e["intervened"].sum())
-    spans = _intervals(ep["intervened"].astype(bool), ep["t"])
+    spans = [(r, _intervals(ep["reason"] == REASONS.index(r), ep["t"])) for r in REASON_COLORS]
     fig, axs = plt.subplots(5, 1, figsize=(12, 12), sharex=True)
     for i in range(3):
         ax = axs[i]
@@ -894,11 +954,13 @@ def plot_interventions(episodes, name, out):
         axs[4].axhline(sgn * np.degrees(lim.max_swing), color="r", ls=":", lw=1)
     axs[4].set_ylabel("payload swing [deg]")
     for ax in axs:
-        for a0, a1 in spans:
-            ax.axvspan(a0, a1, color="m", alpha=0.12, lw=0)
+        for r, iv in spans:
+            for a0, a1 in iv:
+                ax.axvspan(a0, a1, color=REASON_COLORS[r], alpha=0.15, lw=0)
         ax.grid(alpha=0.3)
         ax.legend(fontsize=8, loc="upper right")
-    axs[-1].set_xlabel(f"t [s]  (seed {ep['seed']}, {ep['outcome']}; shaded: filter active,"
+    axs[-1].set_xlabel(f"t [s]  (seed {ep['seed']}, {ep['outcome']}; shaded: filter active -"
+                       f" red: constraint, orange: rate, blue: stall takeover;"
                        f" dotted: filter constraints)")
     fig.tight_layout()
     files.append(os.path.join(out, "safety_example.png"))
@@ -911,13 +973,13 @@ def plot_comparison(results, out):
     """RL director vs director MPC vs RL + safety filter on the same scenarios."""
     import matplotlib.pyplot as plt
 
-    from multi_drone_mujoco.envs.director_mpc import SafetyConstraints
+    from multi_drone_mujoco.envs.predictive_safety_filter import SafetyConstraints
 
     lim = SafetyConstraints()
     os.makedirs(out, exist_ok=True)
     kinds = list(results)
     names = [results[k][0] for k in kinds]
-    colors = ["tab:blue", "tab:purple", "tab:cyan"]
+    colors = ["tab:blue", "tab:purple", "tab:olive", "tab:cyan"]
     files = []
 
     def per_episode(fn):
@@ -988,14 +1050,320 @@ def plot_comparison(results, out):
     step = max(1, len(seeds) // 20)
     ax.set_xticks(range(0, len(seeds), step), seeds[::step])
     ax.set_xlabel("scenario (seed)")
-    for o in OUTCOMES:
-        ax.bar([], [], color=OUTCOME_COLORS[o], label=o)
-    ax.legend(ncol=4, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, 1.35))
+    ax.legend(handles=_outcome_patches(), ncol=4, fontsize=8, loc="upper center",
+              bbox_to_anchor=(0.5, 1.35))
     fig.tight_layout()
     files.append(os.path.join(out, "comparison_paired.png"))
     fig.savefig(files[-1], dpi=130)
     plt.close("all")
     return files
+
+
+################################################################################
+# SAME-SCENARIO TEST (RL director vs director MPC vs RL + safety filter)
+################################################################################
+
+SCENARIO_METHODS = ["director", "director_mpc", "director_safety"]
+METHOD_COLORS = {"director": "tab:blue", "director_mpc": "tab:purple",
+                 "director_resnet_mpc": "tab:olive", "director_safety": "tab:cyan"}
+
+
+def scenario_from_env(env, seed):
+    """The scenario the env drew at its last reset (JSON-serializable)."""
+    return {"seed": int(seed),
+            "payload_position": [float(v) for v in env.TARGET_POSITION],
+            "payload_center": [float(v) for v in
+                               env.data.qpos[env.target_qpos_adr:env.target_qpos_adr + 3]],
+            "goal_position": [float(v) for v in env.GOAL_POSITION],
+            "payload_mass": float(env.MASS),
+            "payload_radius": float(env.RADIUS),
+            "yaw": float(env.INIT_RPYS[0][2]),
+            "start_position": [float(v) for v in env.pos[0]],
+            "grasp_position": [float(v) for v in env.GRASP_POSITION],
+            "waypoints": np.asarray(env.WAYPOINTS, float).tolist()}
+
+
+def apply_scenario(env, scenario):
+    """Replay a scenario right after env.reset() (env.set_scenario)."""
+    env.set_scenario(scenario["payload_position"], scenario["goal_position"],
+                     scenario["payload_mass"], scenario["payload_radius"],
+                     yaw=scenario["yaw"])
+
+
+def build_scenario(args):
+    """Scenario of --seed, or of --scenario FILE, with the command-line overrides."""
+    if args.scenario:
+        with open(args.scenario) as f:
+            scenario = json.load(f)
+        args.seed = scenario["seed"]
+    env = make_director_env(False)
+    env.reset(seed=args.seed)
+    if args.scenario:
+        apply_scenario(env, scenario)
+    scenario = scenario_from_env(env, args.seed)
+    changed = False
+    if args.mass is not None:
+        scenario["payload_mass"] = args.mass
+        changed = True
+    if args.radius is not None:
+        scenario["payload_radius"] = args.radius
+        changed = True
+    if args.payload is not None:
+        scenario["payload_position"] = [args.payload[0], args.payload[1],
+                                        args.payload[2] if len(args.payload) > 2
+                                        else scenario["payload_position"][2]]
+        changed = True
+    if args.goal is not None:
+        scenario["goal_position"] = [args.goal[0], args.goal[1],
+                                     args.goal[2] if len(args.goal) > 2 else 1.0]
+        changed = True
+    if args.yaw is not None:
+        scenario["yaw"] = float(np.radians(args.yaw))
+        changed = True
+    if changed:                       # recompute the derived entries (grasp pose, waypoints)
+        env.reset(seed=args.seed)
+        apply_scenario(env, scenario)
+        scenario = scenario_from_env(env, args.seed)
+    env.close()
+    return scenario
+
+
+def episode_metrics(ep):
+    tilt = np.degrees(np.arccos(np.clip(np.cos(ep["rpy"][:, 0]) * np.cos(ep["rpy"][:, 1]), -1, 1)))
+    att = ep["attached"].astype(bool)
+    return {"outcome": str(ep["outcome"]), "event_time": float(ep["event_time"]),
+            "event_stage": str(ep["event_stage"]),
+            "time_to_goal": float(ep["event_time"]) if ep["outcome"] == "success" else None,
+            "pickup_time": float(ep["t"][np.argmax(att)]) if att.any() else None,
+            "path_length": float(np.sum(np.linalg.norm(np.diff(ep["p"], axis=0), axis=1))),
+            "max_tilt_deg": float(tilt.max()),
+            "max_speed": float(np.linalg.norm(ep["v"], axis=1).max()),
+            "max_swing_deg": float(np.degrees(np.abs(ep["swing"]).max())),
+            "command_roughness": float(np.mean(np.linalg.norm(np.diff(ep["cmd"], axis=0), axis=1)) * 48),
+            "filter_active_percent": float(100 * ep["intervened"].mean())}
+
+
+def scenario_test(args):
+    """Fly the same scenario with every method, save, plot and render it."""
+    methods = [m.strip() for m in args.methods.split(",")]
+    scenario = build_scenario(args)
+    out = os.path.join(args.out, "scenario", args.tag or f"seed_{scenario['seed']}")
+    os.makedirs(out, exist_ok=True)
+    with open(os.path.join(out, "scenario.json"), "w") as f:
+        json.dump(scenario, f, indent=1)
+    print("Scenario:", json.dumps({k: scenario[k] for k in ("seed", "payload_position",
+                                                              "goal_position", "payload_mass",
+                                                              "payload_radius", "yaw")}))
+    results = {}
+    for kind in methods:
+        env, controller = make_controller(kind, args)
+        overlay = Overlay(env)
+        ep = run_director_episode(controller, env, scenario["seed"], args.max_time, args.render,
+                                  overlay, scenario=scenario)
+        env.close()
+        name = CONTROLLERS[kind][0]
+        results[kind] = (name, ep)
+        np.savez_compressed(os.path.join(out, f"{kind}.npz"),
+                            **{k: v for k, v in ep.items() if isinstance(v, np.ndarray)},
+                            **{k: ep[k] for k in ("seed", "crashed", "mass", "radius", "outcome",
+                                                  "event_time", "event_stage")})
+        m = episode_metrics(ep)
+        print(f"  {name:30s} {m['outcome']:10s} t={m['event_time']:5.1f}s  path {m['path_length']:4.1f} m"
+              f"  max tilt {m['max_tilt_deg']:5.1f} deg  max swing {m['max_swing_deg']:5.1f} deg"
+              f"  filter active {m['filter_active_percent']:4.1f}%")
+    with open(os.path.join(out, "results.json"), "w") as f:
+        json.dump({"scenario": scenario,
+                   "methods": {k: {"name": n, **episode_metrics(ep)} for k, (n, ep) in results.items()}},
+                  f, indent=1)
+    files = [os.path.join(out, "scenario.json"), os.path.join(out, "results.json")]
+    files += plot_scenario(results, scenario, out)
+    if args.video:
+        files += render_scenario_video(results, scenario, out, width=args.video_width)
+    for f in files:
+        print("saved:", f)
+
+
+def plot_scenario(results, scenario, out):
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle
+
+    files = []
+    goal = np.array(scenario["goal_position"])
+    pay = np.array(scenario["payload_center"])
+    start = np.array(scenario["start_position"])
+    grasp = np.array(scenario["grasp_position"])
+
+    fig, axs = plt.subplots(1, 2, figsize=(15, 6.5))
+    for ax, (i, j, lab) in zip(axs, ((0, 1, "y"), (0, 2, "z"))):
+        for kind, (name, ep) in results.items():
+            c = METHOD_COLORS.get(kind, "k")
+            p = ep["p"]
+            ax.plot(p[:, i], p[:, j], color=c, lw=1.6, label=f"{name}: {ep['outcome']}")
+            att = ep["attached"].astype(bool)
+            ax.plot(np.where(att, p[:, i], np.nan), np.where(att, p[:, j], np.nan), color=c, lw=4,
+                    alpha=0.35)
+            if "intervened" in ep and ep["intervened"].any():
+                iv = ep["intervened"].astype(bool)
+                ax.scatter(p[iv, i], p[iv, j], s=6, color="m", zorder=3)
+            k = ep["event_step"]
+            ax.scatter(p[k, i], p[k, j], marker="*" if ep["outcome"] == "success" else "X",
+                       s=160, color=c, edgecolor="k", zorder=4)
+        ax.scatter(*start[[i, j]], marker="o", s=80, color="k", label="start")
+        ax.scatter(*pay[[i, j]], marker="s", s=90, color="r",
+                   label=f"payload ({scenario['payload_mass'] + 0.01:.2f} kg, "
+                         f"R {100 * scenario['payload_radius']:.1f} cm)")
+        ax.scatter(*grasp[[i, j]], marker="^", s=60, color="orange", label="grasp pose")
+        ax.scatter(*goal[[i, j]], marker="P", s=120, color="g", label="goal")
+        if j == 1:
+            ax.add_patch(Circle(goal[:2], GOAL_TOLERANCE, color="g", alpha=0.15))
+            ax.set_aspect("equal", adjustable="datalim")
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel(f"{lab} [m]")
+        ax.grid(alpha=0.3)
+        ax.set_title("top view" if j == 1 else "side view (x-z)")
+    axs[0].legend(fontsize=8, loc="best")
+    fig.suptitle(f"Same scenario (seed {scenario['seed']}): thick = payload carried, "
+                 f"magenta dots = safety filter override, * success / X failure")
+    fig.tight_layout()
+    files.append(os.path.join(out, "scenario_trajectories.png"))
+    fig.savefig(files[-1], dpi=130)
+
+    rows = [("distance to goal [m]", lambda ep: np.linalg.norm(ep["p"] - goal, axis=1)),
+            ("speed [m/s]", lambda ep: np.linalg.norm(ep["v"], axis=1)),
+            ("tilt [deg]", lambda ep: np.degrees(np.arccos(np.clip(
+                np.cos(ep["rpy"][:, 0]) * np.cos(ep["rpy"][:, 1]), -1, 1)))),
+            ("payload swing [deg]", lambda ep: np.degrees(np.abs(ep["swing"]).max(axis=1))),
+            ("|applied command| [m/s]", lambda ep: np.linalg.norm(ep["cmd"], axis=1)),
+            ("z [m]", lambda ep: ep["p"][:, 2])]
+    fig, axs = plt.subplots(len(rows), 1, figsize=(13, 2.2 * len(rows)), sharex=True)
+    for ax, (label, fn) in zip(axs, rows):
+        for kind, (name, ep) in results.items():
+            c = METHOD_COLORS.get(kind, "k")
+            ax.plot(ep["t"], fn(ep), color=c, lw=1.2, label=name)
+            att = ep["attached"].astype(bool)
+            if att.any():
+                ax.axvline(ep["t"][np.argmax(att)], color=c, ls=":", lw=1)
+            if kind == "director_safety":
+                for r, iv in ((r, _intervals(ep["reason"] == REASONS.index(r), ep["t"]))
+                              for r in REASON_COLORS):
+                    for a0, a1 in iv:
+                        ax.axvspan(a0, a1, color=REASON_COLORS[r], alpha=0.12, lw=0)
+        ax.set_ylabel(label, fontsize=8)
+        ax.grid(alpha=0.3)
+    axs[0].legend(fontsize=8, loc="upper right")
+    axs[-1].set_xlabel("t [s]  (dotted: payload lifted; shaded: safety filter active - red "
+                       "constraint, orange rate, blue stall, brown hook contact)")
+    fig.tight_layout()
+    files.append(os.path.join(out, "scenario_timeseries.png"))
+    fig.savefig(files[-1], dpi=120)
+
+    metrics = {k: episode_metrics(ep) for k, (_, ep) in results.items()}
+    names = [results[k][0] for k in results]
+    items = [("time_to_goal", "time to goal [s]"), ("path_length", "path length [m]"),
+             ("max_tilt_deg", "max tilt [deg]"), ("max_swing_deg", "max swing [deg]"),
+             ("command_roughness", "command roughness [m/s^2]"),
+             ("filter_active_percent", "filter active [%]")]
+    fig, axs = plt.subplots(1, len(items), figsize=(3.2 * len(items), 4))
+    for ax, (key, label) in zip(axs, items):
+        vals = [metrics[k][key] if metrics[k][key] is not None else np.nan for k in results]
+        ax.bar(range(len(vals)), vals, color=[METHOD_COLORS.get(k, "k") for k in results])
+        ax.set_xticks(range(len(vals)), names, rotation=30, ha="right", fontsize=7)
+        ax.set_title(label, fontsize=9)
+        ax.grid(axis="y", alpha=0.3)
+    fig.suptitle("Outcomes: " + ", ".join(f"{results[k][0]}: {metrics[k]['outcome']}" for k in results))
+    fig.tight_layout()
+    files.append(os.path.join(out, "scenario_summary.png"))
+    fig.savefig(files[-1], dpi=120)
+    plt.close("all")
+    return files
+
+
+class _Ffmpeg:
+    """Pipe RGB frames into ffmpeg (H.264 mp4)."""
+
+    def __init__(self, path, width, height, fps):
+        import shutil
+        import subprocess
+        if shutil.which("ffmpeg") is None:
+            raise RuntimeError("ffmpeg not found (needed for --video)")
+        self.path = path
+        self.proc = subprocess.Popen(
+            ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24",
+             "-s", f"{width}x{height}", "-r", str(fps), "-i", "-", "-c:v", "libx264",
+             "-pix_fmt", "yuv420p", "-crf", "23", path], stdin=subprocess.PIPE)
+
+    def write(self, frame):
+        self.proc.stdin.write(np.ascontiguousarray(frame, dtype=np.uint8).tobytes())
+
+    def close(self):
+        self.proc.stdin.close()
+        self.proc.wait()
+
+
+def _label(frame, lines, color=(255, 255, 255)):
+    from PIL import Image, ImageDraw
+    img = Image.fromarray(frame)
+    d = ImageDraw.Draw(img)
+    y = 6
+    for line in lines:
+        d.rectangle([4, y - 2, 8 + 7 * len(line), y + 13], fill=(0, 0, 0))
+        d.text((6, y), line, fill=color)
+        y += 17
+    return np.asarray(img)
+
+
+def render_scenario_video(results, scenario, out, width=640, every=2):
+    """Replay the logged runs offscreen: one mp4 per method and a side-by-side
+    comparison (same fixed camera, overlays as in the live viewer)."""
+    height = int(width * 0.75) // 2 * 2
+    width = width // 2 * 2
+    env = make_director_env(False)
+    env.reset(seed=scenario["seed"])
+    apply_scenario(env, scenario)
+    model, data = env.model, env.data
+    renderer = mujoco.Renderer(model, height=height, width=width, max_geom=20000)
+    cam = mujoco.MjvCamera()
+    pts = np.array([scenario["start_position"], scenario["payload_center"], scenario["goal_position"]])
+    cam.lookat[:] = [*pts[:, :2].mean(0), 0.6]
+    cam.distance = 0.9 + 0.95 * float(np.ptp(pts[:, :2], axis=0).max())
+    cam.azimuth, cam.elevation = 135.0, -22.0
+    fps = int(round(48 / every))
+    kinds = list(results)
+    writers = {k: _Ffmpeg(os.path.join(out, f"video_{k}.mp4"), width, height, fps) for k in kinds}
+    comp = _Ffmpeg(os.path.join(out, "video_comparison.mp4"), width * len(kinds), height, fps)
+    overlays = {k: Overlay(env) for k in kinds}
+    T = max(len(ep["t"]) for _, ep in results.values())
+    for i in range(0, T + fps, every):               # 1 s of the final state at the end
+        panels = []
+        for k in kinds:
+            name, ep = results[k]
+            j = min(i, len(ep["t"]) - 1)
+            data.qpos[:] = ep["qpos"][j]
+            mujoco.mj_forward(model, data)
+            ov = overlays[k]
+            if i < len(ep["t"]):
+                for jj in range(max(0, i - every + 1), i + 1):
+                    if jj % ov.trail_every == 0 or ep["intervened"][jj]:
+                        ov.trail.append((ep["p"][jj].copy(), float(np.linalg.norm(ep["v"][jj])),
+                                         bool(ep["intervened"][jj])))
+            renderer.update_scene(data, cam)
+            ov.paint_director(renderer.scene, ep["p"][j], ep["cmd"][j], ep["v"][j],
+                              proposal=ep["cmd_rl"][j], intervened=bool(ep["intervened"][j]))
+            frame = renderer.render()
+            status = (f"{ep['outcome']} at {ep['event_time']:.1f}s" if i >= len(ep["t"]) - 1
+                      else ("payload attached" if ep["attached"][j] else "no payload"))
+            lines = [name, f"t = {ep['t'][j]:5.2f} s   {status}"]
+            if ep["intervened"][j]:
+                lines.append(f"filter: {REASONS[int(ep['reason'][j])]}")
+            frame = _label(frame, lines)
+            writers[k].write(frame)
+            panels.append(frame)
+        comp.write(np.hstack(panels))
+    for w in list(writers.values()) + [comp]:
+        w.close()
+    renderer.close()
+    env.close()
+    return [w.path for w in writers.values()] + [comp.path]
 
 
 ################################################################################
@@ -1006,7 +1374,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--test", choices=["velocity", "director", "director_mpc",
-                                           "director_safety", "compare"],
+                                           "director_resnet_mpc", "director_safety", "compare",
+                                           "scenario"],
                         default="velocity")
     parser.add_argument("--model_path", type=str, default=None,
                         help="policy to load (defaults: results/final/...)")
@@ -1018,6 +1387,21 @@ def main():
     parser.add_argument("--render", action="store_true", help="MuJoCo viewer with overlays")
     parser.add_argument("--show", action="store_true", help="show the plots at the end")
     parser.add_argument("--out", default="results/analysis")
+    g = parser.add_argument_group("scenario test (--test scenario)")
+    g.add_argument("--methods", default=",".join(SCENARIO_METHODS),
+                   help="controllers to fly (default: director,director_mpc,director_safety)")
+    g.add_argument("--scenario", default=None, help="replay a saved scenario.json")
+    g.add_argument("--mass", type=float, default=None, help="payload (holder) mass [kg]")
+    g.add_argument("--radius", type=float, default=None, help="payload radius [m]")
+    g.add_argument("--payload", type=float, nargs="+", default=None, metavar="X",
+                   help="payload position x y [Z] (Z: height parameter, 0.45-0.8)")
+    g.add_argument("--goal", type=float, nargs="+", default=None, metavar="X",
+                   help="goal position x y [z]")
+    g.add_argument("--yaw", type=float, default=None, help="initial heading [deg]")
+    g.add_argument("--video", action="store_true",
+                   help="render mp4 videos (per method + side by side) offscreen")
+    g.add_argument("--video_width", type=int, default=640)
+    g.add_argument("--tag", default=None, help="output folder name (default seed_<seed>)")
     args = parser.parse_args()
 
     if not args.show:
@@ -1026,14 +1410,19 @@ def main():
         velocity_test(args)
     elif args.test == "compare":
         compare_test(args)
+    elif args.test == "scenario":
+        scenario_test(args)
     else:
         director_test(args, args.test)
     if args.show:
         import matplotlib.pyplot as plt
-        for f in sorted(os.listdir(os.path.join(args.out, args.test))):
+        folder = os.path.join(args.out, args.test)
+        if args.test == "scenario":
+            folder = os.path.join(folder, args.tag or f"seed_{args.seed}")
+        for f in sorted(os.listdir(folder)):
             if f.endswith(".png"):
                 plt.figure(figsize=(12, 8))
-                plt.imshow(plt.imread(os.path.join(args.out, args.test, f)))
+                plt.imshow(plt.imread(os.path.join(folder, f)))
                 plt.axis("off")
                 plt.title(f)
         plt.show()

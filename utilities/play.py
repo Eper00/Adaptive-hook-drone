@@ -7,6 +7,7 @@ env_type:
     adaptive_director_safety   RL director + MPC safety filter (--model_path)
     adaptive_transport_MPC     rotor-level hybrid MPC (no model needed)
     adaptive_director_MPC      director MPC on the RL velocity controller
+    adaptive_director_resnet_MPC  director MPC with the ResNet-identified model
 With --curriculum_flag true the envs are set to their final curriculum level.
 Success / failure statistics are printed for the director and MPC types
 (utilities/analyse.py has the detailed Monte Carlo analysis).
@@ -17,6 +18,7 @@ Usage:
     python -m utilities.play --env_type adaptive_director_MPC      # MPC on the RL velocity controller
     python -m utilities.play --model_path results/final/rl_adaptive_director_curriculum/best_model.zip \
         --env_type adaptive_director_safety                        # RL director + MPC safety filter
+        (add --filter_model arx to use the ARX model in the filter instead of the ResNet)
 """
 
 import argparse
@@ -26,7 +28,8 @@ import time
 
 
 
-def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum_flag: bool =False):
+def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum_flag: bool =True,
+         filter_model: str = "resnet"):
     """Run ``episodes`` episodes of a policy (or MPC agent) with the viewer
     and print the success / failure statistics."""
     try:
@@ -55,8 +58,9 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         from multi_drone_mujoco.envs.adaptive_hook_director_safety_filter import (
             AdaptiveTransportDirectorAviarySafetyFilter,
         )
+        # filter_model: "resnet" (default, the more accurate model) or "arx"
         env = AdaptiveTransportDirectorAviarySafetyFilter(ctrl_freq=ctrl_freq, sim_freq=240,
-                                                          render_mode="human")
+                                                          render_mode="human", model=filter_model)
     elif env_type == "adaptive_transport_MPC":
         from multi_drone_mujoco.envs.hybrid_mpc import HybridMPCAgent
         env = AdaptiveTransportAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
@@ -67,6 +71,11 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         env = AdaptiveTransportDirectorAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
         env.PAYLOAD_TERMINATION = True
         agent = DirectorMPCAgent(env, verbose=True)
+    elif env_type == "adaptive_director_resnet_MPC":
+        from multi_drone_mujoco.envs.director_resnet_mpc import DirectorResNetMPCAgent
+        env = AdaptiveTransportDirectorAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
+        env.PAYLOAD_TERMINATION = True
+        agent = DirectorResNetMPCAgent(env, verbose=True)
     else:
         raise ValueError(f"Unknown env_type: {env_type}")
     # Episode statistics (director and MPC types)
@@ -117,7 +126,8 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                 
                 time.sleep(0.01)
                
-            elif env_type in ("adaptive_director", "adaptive_director_MPC", "adaptive_director_safety"):
+            elif env_type in ("adaptive_director", "adaptive_director_MPC",
+                              "adaptive_director_resnet_MPC", "adaptive_director_safety"):
                 time.sleep(0.01)
             env.render()
             
@@ -152,7 +162,10 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         elif env_type in ("adaptive_director", "adaptive_director_safety"):
             if env_type == "adaptive_director_safety":
                 print(f"  safety filter interventions: {env.intervention_count}/{env.filter_steps} steps"
-                      f" ({100 * env.intervention_count / max(env.filter_steps, 1):.1f}%)")
+                      f" ({100 * env.intervention_count / max(env.filter_steps, 1):.1f}%):"
+                      f" constraint {env.reason_count['constraint']}, rate {env.reason_count['rate']},"
+                      f" stall takeover {env.reason_count['stall']},"
+                      f" hook-contact escape {env.reason_count['contact']}")
             if env.current_waypoint_idx != len(env.WAYPOINTS)-1:
                 terminated = True
                 truncated = False
@@ -195,6 +208,9 @@ if __name__ == "__main__":
     # see the module docstring for the available types
     parser.add_argument("--env_type", type=str, default="hover")
     parser.add_argument("--episodes", type=int, default=3)
-    parser.add_argument("--curriculum_flag",type=str, default="false")
+    parser.add_argument("--curriculum_flag",type=str, default="true")
+    # adaptive_director_safety: prediction model of the safety filter
+    parser.add_argument("--filter_model", choices=["resnet", "arx"], default="resnet")
     args = parser.parse_args()
-    play(args.model_path, args.env_type, args.episodes,curriculum_flag=args.curriculum_flag.lower() == "true")
+    play(args.model_path, args.env_type, args.episodes,curriculum_flag=args.curriculum_flag.lower() == "true",
+         filter_model=args.filter_model)
