@@ -13,7 +13,7 @@ director       RL director (AdaptiveTransportDirectorAviary + velocity policy)
 director_mpc   Director MPC (DirectorMPCAgent) in the same environment
 director_resnet_mpc
                Director MPC with the ResNet-identified model
-               (DirectorResNetMPCAgent) in the same environment
+               (ResNetMPCAgent, resnet_mpc.py) in the same environment
 director_safety
                RL director on AdaptiveTransportDirectorAviarySafetyFilter: the
                MPC safety filter checks every RL command and replaces it when
@@ -450,14 +450,14 @@ class RLDirector:
 
 class MPCDirector:
     """Director MPC agent (plans the same velocity commands); ``resnet=True``
-    uses the ResNet-identified model instead of the linear one."""
+    uses the ResNet-identified model (resnet_mpc.py) instead of the linear one."""
     name = "Director MPC"
 
     def __init__(self, env, resnet=False):
         self.env = env
         if resnet:
-            from multi_drone_mujoco.envs.director_resnet_mpc import DirectorResNetMPCAgent
-            self.agent = DirectorResNetMPCAgent(env)
+            from multi_drone_mujoco.envs.resnet_mpc import ResNetMPCAgent
+            self.agent = ResNetMPCAgent(env)
             self.name = "Director ResNet-MPC"
         else:
             from multi_drone_mujoco.envs.director_mpc import DirectorMPCAgent

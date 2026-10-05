@@ -38,7 +38,11 @@ Usage:
     python -m utilities.compare_methods --replot              # plots from episodes.pkl
 
 An interrupted run continues where it stopped (finished chunks are kept in
-chunks/); ``--fresh`` starts over, e.g. after retraining a policy or model.
+chunks/); ``--fresh`` starts over, e.g. after retraining a policy or model or
+changing the safety filter.
+
+A safety-filter worker needs 2-3.5 GB, so the number of workers is capped by
+the available memory (``--worker_mem`` GB per worker, default 3.5).
 """
 
 import argparse
@@ -66,9 +70,35 @@ PAIR_COLORS = {"kept": "#b9dcb3", "rescued": "#2e9e4a", "not rescued": "#d1453b"
 # RUNNING
 ################################################################################
 
+def available_memory_gb():
+    """MemAvailable of /proc/meminfo [GB] (None where unknown)."""
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) / 1024 ** 2
+    except OSError:
+        pass
+    return None
+
+
+def memory_limited_workers(workers, worker_mem, reserve=3.0):
+    """At most as many workers as fit into the available memory (keeping
+    ``reserve`` GB for the main process and the desktop). A safety-filter
+    worker needs 2-3.5 GB (PPO policies, ResNet model, CasADi functions);
+    ten of them on a 32 GB machine ran the system out of memory."""
+    avail = available_memory_gb()
+    if avail is None:
+        return workers
+    fit = max(1, int((avail - reserve) / worker_mem))
+    if fit < workers:
+        print(f"[memory] {avail:.1f} GB available, {worker_mem:g} GB per worker:"
+              f" {workers} -> {fit} workers (--worker_mem to change)")
+    return min(workers, fit)
+
+
 def _run_chunk(kind, seeds, max_time, model_path):
     """Worker: fly ``seeds`` with one method (own env / controller)."""
-    os.environ.setdefault("OMP_NUM_THREADS", "1")
     import matplotlib
     matplotlib.use("Agg")
     from multi_drone_mujoco.envs.predictive_safety_filter import hook_obstacle_contact
@@ -124,6 +154,10 @@ def run_all(methods, seeds, max_time, workers, model_path, chunk, chunk_dir):
     if len(todo) < len(jobs):
         print(f"reusing {len(jobs) - len(todo)} finished chunks from {chunk_dir}")
     t0 = time.time()
+    # one BLAS / OpenMP thread per worker; set here, because the spawned
+    # workers import numpy (this module) before they run a chunk
+    for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+        os.environ.setdefault(var, "1")
     ctx = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(workers, mp_context=ctx) as ex:
         futs = {ex.submit(_run_chunk, k, s, max_time, model_path): (k, s) for k, s in todo}
@@ -428,7 +462,7 @@ def plot_gallery(results, out, max_cases=24):
         ax1.plot(a["t"], tilt_deg(a), color=COLORS["director"], lw=1.1, label="RL")
         ax1.plot(b["t"], tilt_deg(b), color=COLORS["director_safety"], lw=1.1,
                  label="RL + filter")
-        ax1.axhline(30, color="#d1453b", ls=":", lw=0.9)
+        ax1.axhline(15, color="#d1453b", ls=":", lw=0.9)
         ax2.plot(a["t"], a["p"][:, 2], color=COLORS["director"], lw=1.1)
         ax2.plot(b["t"], b["p"][:, 2], color=COLORS["director_safety"], lw=1.1)
         pz = a["payload_pos"][:, 2] - a["payload_start"][2]
@@ -594,7 +628,10 @@ def main():
     p.add_argument("--episodes", type=int, default=100)
     p.add_argument("--seed", type=int, default=0, help="first seed")
     p.add_argument("--max_time", type=float, default=25.0)
-    p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) // 2),
+                   help="parallel workers (capped by the available memory)")
+    p.add_argument("--worker_mem", type=float, default=3.5,
+                   help="memory budget per worker [GB] for the cap")
     p.add_argument("--chunk", type=int, default=5, help="seeds per worker job")
     p.add_argument("--model_path", default=None, help="RL director policy (default: final)")
     p.add_argument("--out", default="results/analysis/methods")
@@ -612,6 +649,7 @@ def main():
     else:
         methods = [m.strip() for m in a.methods.split(",")]
         seeds = list(range(a.seed, a.seed + a.episodes))
+        a.workers = memory_limited_workers(a.workers, a.worker_mem)
         print(f"{len(methods)} methods x {len(seeds)} scenarios, {a.max_time:.0f} s,"
               f" {a.workers} workers")
         chunk_dir = os.path.join(a.out, "chunks")

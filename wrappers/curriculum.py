@@ -1,0 +1,299 @@
+"""Curriculum learning wrapper for progressive difficulty scaling.
+
+Automatically adjusts task difficulty based on agent performance,
+enabling smooth learning from easy to hard tasks.
+"""
+
+import numpy as np
+import gymnasium as gym
+from dataclasses import dataclass, field
+from typing import Callable, Optional, Dict, Any
+from collections import deque
+from stable_baselines3.common.callbacks import BaseCallback
+import numpy as np
+@dataclass
+class CurriculumConfig:
+    """Configuration for curriculum learning.
+
+    Parameters
+    ----------
+    metric : str
+        Performance metric to track ("success_rate", "reward", "episode_length").
+    threshold_advance : float
+        Metric value above which difficulty increases.
+    threshold_retreat : float
+        Metric value below which difficulty decreases.
+    window_size : int
+        Number of episodes to average metric over.
+    num_levels : int
+        Total number of difficulty levels.
+    start_level : int
+        Initial difficulty level (0 = easiest).
+    advance_count : int
+        Must exceed threshold for this many consecutive windows to advance.
+    """
+    # Presets per environment: only the one written as plain fields is active
+    # (currently: adaptive transport / director); the others are kept as
+    # strings. Swap them before training another environment.
+    """Adaptive hover:
+    metric: str = "reward"
+    threshold_advance: float = 400
+    threshold_retreat: float = -1000
+    window_size: int = 20
+    num_levels: int = 50
+    start_level: int = 0
+    advance_count: int = 1
+    
+    Adaptive transport:"""
+
+    metric: str = "reward"
+    threshold_advance: float = 1000
+    threshold_retreat: float = -1000
+    window_size: int = 100
+    num_levels: int = 4
+    start_level: int = 0
+    advance_count: int = 1
+    
+    """Adaptive velocity:
+    metric: str = "reward"
+    threshold_advance: float = 110
+    threshold_retreat: float = -1000
+    window_size: int = 20
+    num_levels: int = 3
+    start_level: int = 0
+    advance_count: int = 1"""
+    
+class CurriculumWrapper(gym.Wrapper):
+    """Gymnasium wrapper that implements automatic curriculum learning.
+
+    The wrapper tracks agent performance and adjusts environment difficulty
+    by calling a user-provided `difficulty_fn(env, level, level_changed)` on
+    each reset (utilities/learn.py's ``adjust_difficulty`` only acts when
+    ``level_changed`` is True). Every parallel env has its own level.
+
+    Example
+    -------
+    >>> def adjust_difficulty(env, level):
+    ...     # Level 0-9: target gets farther
+    ...     env.TARGET_HEIGHT = 0.3 + level * 0.1
+    ...     # Level 5+: add wind
+    ...     if level >= 5:
+    ...         env.wind_speed = (level - 5) * 0.5
+    ...
+    >>> env = CurriculumWrapper(HoverAviary(), difficulty_fn=adjust_difficulty)
+    """
+    
+
+            
+    
+
+
+    def __init__(
+        self,
+        env: gym.Env,
+        difficulty_fn: Callable[[gym.Env, int], None],
+        config: Optional[CurriculumConfig] = None,
+    ):
+        super().__init__(env)
+        self.config = config or CurriculumConfig()
+        self.difficulty_fn = difficulty_fn
+        self.current_level = self.config.start_level
+
+        # Tracking
+        self._episode_metrics: deque = deque(maxlen=self.config.window_size)
+        self._episode_reward = 0.0
+        self._episode_steps = 0
+        self._episode_success = False
+        self._advance_streak = 0
+        self._level_changed = False
+
+       
+
+    @property
+    def level(self) -> int:
+        return self.current_level
+
+    @property
+    def progress(self) -> float:
+        
+        """Normalized progress through curriculum [0, 1]."""
+        return self.current_level / max(self.config.num_levels - 1, 1)
+
+    def reset(self, **kwargs):
+       
+        self.difficulty_fn(self.env, self.current_level,self._level_changed)
+        self._level_changed = False
+
+        # Reset episode tracking
+        self._episode_reward = 0.0
+        self._episode_steps = 0
+        self._episode_success = False
+
+        obs, info = self.env.reset(**kwargs)
+        info["curriculum_level"] = self.current_level
+        info["curriculum_progress"] = self.progress
+        return obs, info
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        self._episode_reward += reward
+        self._episode_steps += 1
+       
+        # Check for success flag in info
+        if info.get("success", False) or info.get("is_success", False):
+            self._episode_success = True
+
+        # On episode end, update curriculum
+        if terminated or truncated:
+            self._record_episode(info)
+            self._maybe_adjust_level()
+            info["curriculum_level"] = self.current_level
+
+        return obs, reward, terminated, truncated, info
+
+    def _record_episode(self, info: Dict[str, Any]):
+        """Record episode metrics."""
+        metric = self.config.metric
+        if metric == "success_rate":
+            value = float(self._episode_success)
+        elif metric == "reward":
+            value = self._episode_reward
+        elif metric == "episode_length":
+            value = self._episode_steps
+        else:
+            value = info.get(metric, 0.0)
+        self._episode_metrics.append(value)
+
+    def _maybe_adjust_level(self):
+        """Check if we should advance or retreat."""
+
+        if len(self._episode_metrics) < self.config.window_size:
+            return
+
+        avg = np.mean(list(self._episode_metrics))
+
+
+        if avg >= self.config.threshold_advance:
+
+            self._advance_streak += 1
+
+            if self._advance_streak >= self.config.advance_count:
+
+                old_level = self.current_level
+
+                self.current_level = min(
+                    self.current_level + 1,
+                    self.config.num_levels - 1
+                )
+
+                if self.current_level != old_level:
+
+                    
+                   
+                    self._level_changed = True
+
+                   
+
+                self._advance_streak = 0
+                self._episode_metrics.clear()
+
+
+        elif avg <= self.config.threshold_retreat:
+
+            old_level = self.current_level
+
+            self.current_level = max(
+                self.current_level - 1,
+                0
+            )
+
+            if self.current_level != old_level:
+
+            
+               
+
+                self._level_changed = True
+
+               
+
+            self._advance_streak = 0
+            self._episode_metrics.clear()
+
+
+        else:
+            self._advance_streak = 0
+            self._level_changed = False
+    def get_stats(self) -> Dict[str, Any]:
+        """Return curriculum statistics."""
+        metrics = list(self._episode_metrics)
+        return {
+            "level": self.current_level,
+            "progress": self.progress,
+            "metric_avg": np.mean(metrics) if metrics else 0.0,
+            "metric_std": np.std(metrics) if metrics else 0.0,
+            "episodes_tracked": len(metrics),
+        }
+    def set_level(self, level):
+        """Force curriculum level."""
+        self.current_level = level
+        self._level_changed = True
+       
+
+    def get_level(self):
+        return self.current_level
+    # (note: level_up_times is never set, so this raises AttributeError)
+    def get_level_up_times(self):
+        return self.level_up_times
+
+
+class CurriculumCallback(BaseCallback):
+    """Logs the curriculum level to TensorBoard and keeps the evaluation env
+    on the highest level reached by the training envs."""
+
+    def __init__(self, eval_env, verbose=0):
+        super().__init__(verbose)
+        self.eval_env = eval_env
+        self.last_level = -1
+
+
+    def _on_step(self):
+
+        # Current levels of the training envs
+        levels = self.training_env.env_method("get_level")
+        # With 8 parallel envs: follow the most advanced one
+        current_level = max(levels)
+
+        # TensorBoard log
+        self.logger.record(
+            "curriculum/level",
+            current_level
+        )
+
+
+        if current_level==0 and current_level != self.last_level :
+            print(f"[CURRICULUM] Level started at: "
+            f"{current_level}")
+            
+                        # Synchronize the eval env
+            self.eval_env.env_method(
+                            "set_level",
+                            current_level
+                        )
+            
+            self.last_level = current_level
+        if current_level != self.last_level:
+
+            print(
+                f"[CURRICULUM] Level changed: "
+                f"{self.last_level} -> {current_level}"
+            )
+
+            # Synchronize the eval env
+            self.eval_env.env_method(
+                "set_level",
+                current_level
+            )
+
+            self.last_level = current_level
+
+        return True

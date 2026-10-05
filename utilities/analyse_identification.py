@@ -12,7 +12,7 @@ mode 1 with the payload, see docs/director_mpc.md):
             (director_mpc.py, results/mpc_director/identified_model.npz)
     ResNet  x_k+1 = x_k + f(x_k, u_k), f a residual network trained with a
             multi-step loss on P-controller, strongly excited and RL director
-            flights (director_resnet_mpc.py, results/mpc_director/resnet_model.npz)
+            flights (resnet_mpc.py, results/mpc_director/resnet_model.pt)
 
 To separate the effect of the method from the effect of the data, the ARX
 model is also re-fitted on exactly the ResNet's training data ("ARX (same
@@ -51,8 +51,8 @@ import numpy as np
 from multi_drone_mujoco.envs.director_mpc import (
     DEFAULT_MODEL_FILE, NX, fit_director_models, load_models, make_identification_env,
 )
-from multi_drone_mujoco.envs.director_resnet_mpc import (
-    DATA_FILE, DIRECTOR_POLICY, RESNET_FILE, _collect_p, _collect_rl, collect_runs, load_resnet,
+from multi_drone_mujoco.envs.resnet_mpc import (
+    DATA_FILE, DIRECTOR_POLICY, MODEL_FILE, _collect_p, _collect_rl, collect_runs, load_model,
 )
 
 DT = 1.0 / 48.0
@@ -446,7 +446,7 @@ def main():
     parser.add_argument("--rl_flights", type=int, default=1, help="RL director test flights")
     parser.add_argument("--policy", default=DIRECTOR_POLICY, help="RL director policy")
     parser.add_argument("--arx", default=DEFAULT_MODEL_FILE, help="ARX model file")
-    parser.add_argument("--resnet", default=RESNET_FILE, help="ResNet model file")
+    parser.add_argument("--resnet", default=MODEL_FILE, help="ResNet model file")
     parser.add_argument("--stride", type=int, default=4, help="steps between prediction windows")
     parser.add_argument("--reuse", action="store_true", help="reuse the cached test flights")
     parser.add_argument("--no_refit", action="store_true",
@@ -472,7 +472,7 @@ def main():
         with open(cache, "wb") as f:
             pickle.dump(runs, f)
 
-    models = {"ARX": load_models(args.arx), "ResNet": load_resnet(args.resnet)}
+    models = {"ARX": load_models(args.arx), "ResNet": load_model(args.resnet)}
     if not args.no_refit:
         refit = arx_on_resnet_data(os.path.join(args.out, "arx_same_data.npz"))
         if refit is not None:

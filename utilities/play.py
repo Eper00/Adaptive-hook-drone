@@ -7,7 +7,7 @@ env_type:
     adaptive_director_safety   RL director + MPC safety filter (--model_path)
     adaptive_transport_MPC     rotor-level hybrid MPC (no model needed)
     adaptive_director_MPC      director MPC on the RL velocity controller
-    adaptive_director_resnet_MPC  director MPC with the ResNet-identified model
+    adaptive_director_resnet_MPC  director MPC with the ResNet-identified model (resnet_mpc.py)
 With --curriculum_flag true the envs are set to their final curriculum level.
 Success / failure statistics are printed for the director and MPC types
 (utilities/analyse.py has the detailed Monte Carlo analysis).
@@ -72,10 +72,10 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         env.PAYLOAD_TERMINATION = True
         agent = DirectorMPCAgent(env, verbose=True)
     elif env_type == "adaptive_director_resnet_MPC":
-        from multi_drone_mujoco.envs.director_resnet_mpc import DirectorResNetMPCAgent
+        from multi_drone_mujoco.envs.resnet_mpc import ResNetMPCAgent
         env = AdaptiveTransportDirectorAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
         env.PAYLOAD_TERMINATION = True
-        agent = DirectorResNetMPCAgent(env, verbose=True)
+        agent = ResNetMPCAgent(env, verbose=True)
     else:
         raise ValueError(f"Unknown env_type: {env_type}")
     # Episode statistics (director and MPC types)
