@@ -53,12 +53,12 @@ class AdaptiveTransportAviary(BaseAviary):
         render_mode=None,
     ):
         # Payload randomization ranges [kg] / [m]
-        self.MIN_PAYLOAD_MASS = 0.05
-        self.MAX_PAYLOAD_MASS = 0.3
+        self.MIN_PAYLOAD_MASS = 0.01
+        self.MAX_PAYLOAD_MASS = 0.25
         self.MIN_PAYLOAD_RADIUS = 0.02
         self.MAX_PAYLOAD_RADIUS = 0.04
 
-        self.GOAL_RANDOM_AMPLITUDE = 1.0    # goal x, y drawn from +-amplitude
+        self.GOAL_RANDOM_AMPLITUDE = 1.5    # goal x, y drawn from +-amplitude
         self.EPISODE_LEN_SEC = 10
         self.WAYPOINT_RADIUS = waypoint_radius
 
@@ -69,10 +69,10 @@ class AdaptiveTransportAviary(BaseAviary):
         self.TARGET_ORIENTATION = 0   # yaw target handed to the low-level controller
         self.PAYLOAD_RADIUS = 0.05
         self.PAYLOAD_MASS = 0.2
-        self.RANDOM_ORIENTATION = False
+        self.RANDOM_ORIENTATION = True
         self.GRAB_FLAG = False              # payload came close to the hook (see _update_grab_flag)
-        self.GRAB_FLAG_ENABLE = False       # curriculum: pick-up part of the task
-        self.PAYLOAD_TERMINATION = False    # curriculum: final task (see module docstring)
+        self.GRAB_FLAG_ENABLE = True       # curriculum: pick-up part of the task
+        self.PAYLOAD_TERMINATION = True    # curriculum: final task (see module docstring)
 
         if waypoints is None:
             self.WAYPOINTS = np.array([

@@ -92,6 +92,9 @@ def adjust_difficulty(env, level,level_changed=True):
                
             elif level==2:
                 print(f"New level: {level}")
+                # set again (not only at level 1) so that training without
+                # curriculum, which jumps straight to this level, gets it too
+                env.RANDOM_OREINTATION = True
                 env.MIN_PAYLOAD_MASS=0.01
                 env.MAX_PAYLOAD_MASS=0.25
                 env.MIN_PAYLOAD_RADIUS=0.02
@@ -141,6 +144,15 @@ def train_single(
         # (env_class stays undefined: training cannot start)
         print("Invalid enviroment type")
 
+    # Without curriculum the agent trains directly on the last curriculum
+    # level (the final task), so both variants are evaluated on the same env.
+    final_level = 2 if env_class is AdaptiveVelocityAviary else 3
+
+    def make_final_env():
+        e = env_class(ctrl_freq=ctrl_freq, sim_freq=240)
+        adjust_difficulty(e, final_level, True)
+        return e
+
     # -----------------------------
     # Evaluation environment
     # -----------------------------
@@ -155,7 +167,7 @@ def train_single(
         n_envs=1,
     )
     else:
-        eval_env = env_class(ctrl_freq=ctrl_freq, sim_freq=240)
+        eval_env = make_final_env()
 
 
     # -----------------------------
@@ -174,10 +186,7 @@ def train_single(
        
     else:
         # Normal vectorized env
-        env = make_vec_env(
-            lambda: env_class(ctrl_freq=ctrl_freq, sim_freq=240),
-            n_envs=8,
-        )
+        env = make_vec_env(make_final_env, n_envs=8)
     # (training with and without curriculum can be compared on the same env)
     # -----------------------------
     # Evaluation callback
