@@ -105,9 +105,11 @@ class CurriculumWrapper(gym.Wrapper):
         self._episode_steps = 0
         self._episode_success = False
         self._advance_streak = 0
-        self._level_changed = False
+        # True: the first reset applies start_level (difficulty_fn acts only on
+        # a change, otherwise the first level would run with the env defaults)
+        self._level_changed = True
 
-       
+
 
     @property
     def level(self) -> int:

@@ -18,10 +18,16 @@ loop (env low-pass filter -> PPO velocity controller -> drone + payload):
    filtered command c_k+1 = c_k + alpha (u - c_k), not u itself (the RL
    director switches u between the bounds and lets the filter average it).
    A proposal that changes c faster than ``max_ref_accel`` per axis is
-   clipped to that rate: |u - c_k| <= max_ref_accel dt / alpha. The default,
-   g tan(15 deg), is the acceleration a 15 deg tilt sustains. Optionally,
+   clipped to that rate: |u - c_k| <= max_ref_accel dt / alpha (e.g.
+   g tan(15 deg), the acceleration a 15 deg tilt sustains). Optionally,
    jumps of u larger than ``max_step`` or direction changes larger than
-   ``max_turn`` are limited as well (off by default)                 ["rate"]
+   ``max_turn`` are limited as well. All three are off by default: the RL
+   director commands bang-bang (u jumps between about +1 and -1 and the
+   low-pass filter averages it), so a per-step limit clips almost every
+   step and shifts the average command the RL intends. With g tan(15 deg)
+   it clipped ~95 % of the steps, the drone could not settle at the
+   waypoints and lost more payloads (300 scenarios: 259 successes against
+   279 without the limit and 271 for the RL alone)                  ["rate"]
 3. Certification. The (clipped) proposal is certified if, applied now, a
    continuation of commands exists that keeps the predicted state inside the
    constraints over the horizon (tilt, altitude, speed, payload swing). The
@@ -49,10 +55,8 @@ swings more than the limit), that bound is relaxed to the current value and
 has to shrink by the factor ``contraction`` per step, instead of demanding
 an immediate return that no command can achieve.
 
-The prediction model is a PyTorch module m(x, u, d) -> x_next: the ResNet
-model of resnet_mpc.py (the more accurate one, see
-utilities/analyse_identification.py), or the ARX DirectorModel wrapped by
-``LinearDynamics``. Rollouts and Jacobians come from PyTorch (``torch.func``),
+The prediction model is the ResNet model of resnet_mpc.py, a PyTorch module
+m(x, u, d) -> x_next. Rollouts and Jacobians come from PyTorch (``torch.func``),
 the QPs are solved with DAQP.
 """
 
@@ -62,14 +66,13 @@ from dataclasses import dataclass
 import casadi as ca
 import numpy as np
 import torch
-from torch import nn
 
-from multi_drone_mujoco.envs.director_mpc import C, NU, NX
+from multi_drone_mujoco.envs.director_mpc import C, NU, NX, TH, TILT, V
 from multi_drone_mujoco.envs.resnet_mpc import rollout, step_jacobians
 
-TILT_IDX = (19, 20)
-SPEED_IDX = (3, 4, 5)
-SWING_IDX = (15, 16)
+TILT_IDX = tuple(range(TILT.start, TILT.stop))     # roll, pitch (world frame)
+SPEED_IDX = tuple(range(V.start, V.stop))
+SWING_IDX = tuple(range(TH.start, TH.stop))
 ALT_IDX = 2
 
 
@@ -89,18 +92,24 @@ class SafetyConstraints:
     escape_lateral: float = 0.0              # |u_x|, |u_y| <= this while escaping [m/s]
     escape_time: float = 0.5                 # longest escape per trigger [s]
     escape_release_tilt: float = np.radians(8.0)   # escape ends: no contact, tilt below [rad]
-    # command-change limits (None disables them)
-    max_ref_accel: float = 9.81 * np.tan(np.radians(15.0))  # |c_k+1 - c_k| / dt per axis of
-                                             # the filtered command the PPO tracks [m/s^2]
+    # command-change limits (None disables them; off by default, see the
+    # module docstring)
+    max_ref_accel: float = None              # |c_k+1 - c_k| / dt per axis of the filtered
+                                             # command the PPO tracks [m/s^2], e.g. 9.81 tan 15 deg
     max_step: float = None                   # |u_k - u_k-1| per step [m/s]
     max_turn: float = None                   # direction change per step [rad] ...
     turn_min_speed: float = 0.1              # ... checked when both commands exceed this
+    # limits of an intervention's first command with respect to the RL proposal
+    # (not of the contact escape; off by default)
+    no_reversal: bool = False                # per axis no sign opposite to u_rl
+    max_deviation: float = None              # |u_0 - u_rl| per axis [m/s]
 
 
 def tilt_angle(x):
     """Angle between the body z axis and the vertical from the world-frame
     roll / pitch of the state vector [rad]."""
-    return float(np.arctan(np.hypot(np.tan(x[19]), np.tan(x[20]))))
+    roll, pitch = x[TILT]
+    return float(np.arctan(np.hypot(np.tan(roll), np.tan(pitch))))
 
 
 def hook_obstacle_contact(env, attached):
@@ -127,35 +136,24 @@ def hook_obstacle_contact(env, attached):
     return False
 
 
-class LinearDynamics(nn.Module):
-    """x_k+1 = A x_k + B u_k + f + E d of a linear model (the ARX
-    DirectorModel) as a PyTorch module, so that the filter can use it like
-    the ResNet model."""
-
-    def __init__(self, model):
-        super().__init__()
-        for name, a in (("A", model.A), ("B", model.B), ("f", model.f),
-                        ("E", model.disturbance_map())):
-            self.register_buffer(name, torch.as_tensor(a, dtype=torch.float64))
-
-    def forward(self, x, u, d=None):
-        x_next = x @ self.A.T + u @ self.B.T + self.f
-        return x_next if d is None else x_next + d @ self.E.T
-
-
 class PredictiveSafetyFilter:
     """Model-based safety filter for velocity commands (see module docstring).
 
     models: [mode 0 model, mode 1 model], PyTorch modules m(x, u, d) -> x_next
-            (``ResNetDynamics`` of resnet_mpc.py or ``LinearDynamics``).
+            (``ResNetDynamics`` of resnet_mpc.py).
     """
 
     GROUPS = ("tilt", "altitude", "speed", "swing")
     SLACK = {"tilt": (1e6, 1e4), "altitude": (1e5, 1e3), "speed": (1e4, 1e2), "swing": (1e3, 10.0)}
     TOL = {"tilt": np.radians(1.0), "altitude": 0.01, "speed": 0.03, "swing": np.radians(2.0)}
 
+    # w0 = 10 (instead of 1): an intervention stays closer to the RL proposal.
+    # 300 scenarios (success = goal + 5 s hold), RL alone 283: w0 = 1 -> 292
+    # (11 rescued, 2 broken), w0 = 10 -> 294 (12 rescued, 1 broken), w0 = 20 /
+    # 30 -> 288 / 289; hard limits on the intervention (no_reversal,
+    # max_deviation) -> 288-291 (2026-10-12)
     def __init__(self, models, horizon=36, constraints=None, u_max=1.0, disturbance_gain=0.05,
-                 max_disturbance=0.01, w0=1.0, w1=0.1, w_du=0.5, sqp_iterations=2, dt=1.0 / 48.0,
+                 max_disturbance=0.01, w0=10.0, w1=0.1, w_du=0.5, sqp_iterations=2, dt=1.0 / 48.0,
                  alpha=0.1, qp_solver="daqp"):
         self.models = [m.requires_grad_(False) for m in models]
         self._jac = [step_jacobians(m) for m in self.models]
@@ -242,7 +240,7 @@ class PredictiveSafetyFilter:
         with torch.inference_mode():
             pred = self.models[mode](torch.from_numpy(x_prev), torch.from_numpy(u_prev),
                                      torch.from_numpy(self.dist)).numpy()
-        self.dist = np.clip(self.dist + self.dist_gain * (x[3:6] - pred[3:6]),
+        self.dist = np.clip(self.dist + self.dist_gain * (x[V] - pred[V]),
                             -self.max_dist, self.max_dist)
 
     def rollout(self, mode, x0, U):
@@ -406,7 +404,16 @@ class PredictiveSafetyFilter:
             hard_lo, hard_hi = self._bounds(mode, x0, hard=True)
             lbu = np.full(NU * N, -self.u_max)
             ubu = np.full(NU * N, self.u_max)
-            lbu[:NU], ubu[:NU] = lb0, ub0
+            lb_i, ub_i = lb0.copy(), ub0.copy()
+            if not escaping:
+                if c.no_reversal:
+                    lb_i = np.where(u_rl > 0, np.maximum(lb_i, 0.0), lb_i)
+                    ub_i = np.where(u_rl < 0, np.minimum(ub_i, 0.0), ub_i)
+                if c.max_deviation is not None:
+                    lb_i = np.maximum(lb_i, u_rl - c.max_deviation)
+                    ub_i = np.minimum(ub_i, u_rl + c.max_deviation)
+                lb_i = np.minimum(lb_i, ub_i)       # keep the box non-empty
+            lbu[:NU], ubu[:NU] = lb_i, ub_i
             U_s = np.clip(U_nom, lbu.reshape(N, NU).T, ubu.reshape(N, NU).T)
             X_s = self.rollout(mode, x0, U_s)
             best = None
@@ -437,7 +444,7 @@ class PredictiveSafetyFilter:
                 X_s = self.rollout(mode, x0, U_s)
                 best = (U_s, X_s, z[NU * N:])
             if best is None:                     # QP failure: hold the previous command
-                u_hold = np.clip(u_prev, lb0, ub0)
+                u_hold = np.clip(u_prev, lb_i, ub_i)
                 U = np.tile(u_hold[:, None], (1, N))
                 X = self.rollout(mode, x0, U)
             else:

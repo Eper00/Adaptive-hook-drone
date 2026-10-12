@@ -2,11 +2,12 @@
 
 Methods (all on the same scenarios, seed by seed):
 
-    director         RL director policy
-    director_mpc     director MPC (ARX model)
-    director_safety  RL director + predictive safety filter (ResNet model)
+    director             RL director policy
+    director_mpc         MPC director: ResNet MPC on the active waypoint (waypoint_mpc.py),
+                         horizon = the safety filter's
+    director_safety      RL director + predictive safety filter (ResNet model)
 
-(``--methods`` also accepts director_resnet_mpc.) The episodes run in
+The episodes run in
 parallel processes; the raw episodes are cached in ``episodes.pkl`` so the
 plots can be redone with ``--replot``.
 
@@ -57,10 +58,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import numpy as np
 
 METHODS = ["director", "director_mpc", "director_safety"]
-NAMES = {"director": "RL director", "director_mpc": "Director MPC",
-         "director_resnet_mpc": "Director ResNet-MPC", "director_safety": "RL + safety filter"}
-COLORS = {"director": "#3b6fb6", "director_mpc": "#8e5bb5",
-          "director_resnet_mpc": "#9a9a2e", "director_safety": "#1ba39c"}
+NAMES = {"director": "RL director", "director_mpc": "MPC director",
+         "director_safety": "RL + safety filter"}
+COLORS = {"director": "#3b6fb6", "director_mpc": "#e08a2c",
+          "director_safety": "#1ba39c"}
 PAIR = ["kept", "rescued", "not rescued", "broken"]
 PAIR_COLORS = {"kept": "#b9dcb3", "rescued": "#2e9e4a", "not rescued": "#d1453b",
                "broken": "#e8a33d"}
@@ -135,13 +136,17 @@ def _run_chunk(kind, seeds, max_time, model_path):
 def run_all(methods, seeds, max_time, workers, model_path, chunk, chunk_dir):
     """Fly all (method, seed) pairs. Every finished chunk is saved in
     ``chunk_dir`` and reused on a restart (``--fresh`` deletes them)."""
+    from multi_drone_mujoco.envs.adaptive_hook_director_safety_filter import FILTER_HORIZON
     jobs = [(k, seeds[i:i + chunk]) for k in methods for i in range(0, len(seeds), chunk)]
     # slow methods first, so the pool stays busy
-    jobs.sort(key=lambda j: j[0] not in ("director_safety", "director_resnet_mpc"))
+    jobs.sort(key=lambda j: j[0] not in ("director_safety", "director_mpc"))
     os.makedirs(chunk_dir, exist_ok=True)
 
     def chunk_file(kind, s):
-        return os.path.join(chunk_dir, f"{kind}_{s[0]}_{s[-1]}_{max_time:g}s.pkl")
+        # the MPC / filter horizon is part of the name, so runs with another
+        # horizon are not reused
+        tag = f"{kind}_N{FILTER_HORIZON}" if kind != "director" else kind
+        return os.path.join(chunk_dir, f"{tag}_{s[0]}_{s[-1]}_{max_time:g}s.pkl")
 
     results = {k: [] for k in methods}
     todo = []
@@ -205,8 +210,19 @@ def first_intervention(ep):
     return (float(ep["t"][idx[0]]), int(idx[0])) if idx.size else (None, None)
 
 
+def reclassify(results):
+    """Outcome of every episode with the current rule (analyse.classify), so
+    that cached episodes follow a changed success criterion."""
+    from utilities.analyse import STAGES, classify
+    for eps in results.values():
+        for ep in eps:
+            outcome, k = classify(ep)
+            ep.update(outcome=outcome, event_step=k, event_time=float(ep["t"][k]),
+                      event_stage=STAGES[min(int(ep["waypoint"][k]), len(STAGES) - 1)])
+
+
 def summarize(results):
-    from utilities.analyse import OUTCOMES, REASONS
+    from utilities.analyse import GOAL_HOLD_TIME, OUTCOMES, REASONS
     s = {"methods": {}}
     for k, eps in results.items():
         n = len(eps)
@@ -217,6 +233,11 @@ def summarize(results):
             "name": NAMES[k], "episodes": n, **counts,
             "success_rate": counts["success"] / max(n, 1), "success_ci95": [lo, hi],
             "time_to_goal_median": float(np.median(tg)) if tg else None,
+            # successes (goal + GOAL_HOLD_TIME s hold) that lost the payload or
+            # crashed later in the episode (only the RL episodes run on)
+            "success_hold_s": GOAL_HOLD_TIME,
+            "failed_after_hold": sum(e["outcome"] == "success" and
+                                     (e["crashed"] or not e["attached"][-1]) for e in eps),
             "max_tilt_median_deg": float(np.median([tilt_deg(e).max() for e in eps])),
             "max_swing_median_deg": float(np.median([np.degrees(np.abs(e["swing"]).max())
                                                      for e in eps])),
@@ -261,7 +282,7 @@ def plot_overview(results, out):
     from multi_drone_mujoco.envs.predictive_safety_filter import SafetyConstraints
     lim = SafetyConstraints()
     kinds = list(results)
-    names = [NAMES[k] for k in kinds]
+    names = [NAMES[k].replace(" ", "\n", 1) for k in kinds]   # two lines: 4 methods fit
     fig, axs = plt.subplots(2, 3, figsize=(17, 9.5))
 
     ax = axs[0, 0]                                   # outcomes (stacked)
@@ -281,8 +302,10 @@ def plot_overview(results, out):
                     lw=1)
     ax.set_xticks(range(len(kinds)), names)
     ax.set_ylabel("episodes [%]")
-    ax.set_title(f"Outcomes ({len(results[kinds[0]])} scenarios, bar: 95% CI of success)")
-    ax.legend(ncol=4, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.07))
+    from utilities.analyse import GOAL_HOLD_TIME
+    ax.set_title(f"Outcomes ({len(results[kinds[0]])} scenarios; success: goal + "
+                 f"{GOAL_HOLD_TIME:g} s hold; bar: 95% CI)")
+    ax.legend(ncol=4, fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.13))
     ax.set_ylim(0, 100)
 
     ax = axs[0, 1]                                   # success vs payload mass
@@ -660,6 +683,7 @@ def main():
                           chunk_dir)
         with open(cache, "wb") as f:
             pickle.dump(results, f)
+    reclassify(results)
     report(results, a.out)
 
 

@@ -25,7 +25,7 @@ import mujoco
 from gymnasium import spaces
 
 from multi_drone_mujoco.envs.base_aviary import BaseAviary
-from multi_drone_mujoco.envs.mpc_mission import APPROACH_HEIGHT, grasp_pose
+from multi_drone_mujoco.envs.director_mpc import APPROACH_HEIGHT, grasp_pose
 from multi_drone_mujoco.utils.enums import (
     DroneModel,
     Physics,

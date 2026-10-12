@@ -9,8 +9,9 @@ import mujoco
 import numpy as np
 from PIL import Image
 
+from multi_drone_mujoco.envs.adaptive_hook_director_velocity import AdaptiveTransportDirectorAviary
 from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
-from multi_drone_mujoco.envs.hybrid_mpc import HybridMPCAgent
+from multi_drone_mujoco.envs.waypoint_mpc import WaypointMPCAgent
 
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pictures")
 WIDTH, HEIGHT = 1600, 1200
@@ -21,8 +22,8 @@ SCENARIO = dict(target_position=(0.6, 0.0, 0.6), goal_position=(0.6, 0.6, 1.0),
                 mass=0.15, radius=0.03)
 
 
-def make_env(scenario=SCENARIO, random_orientation=False, seed=0):
-    env = AdaptiveTransportAviary(render_mode="rgb_array")
+def make_env(scenario=SCENARIO, random_orientation=False, seed=0, env_class=AdaptiveTransportAviary):
+    env = env_class(render_mode="rgb_array")
     env.model.vis.global_.offwidth = WIDTH
     env.model.vis.global_.offheight = HEIGHT
     env.RANDOM_ORIENTATION = random_orientation  # random initial yaw at reset
@@ -93,21 +94,25 @@ def main():
            os.path.join(OUT_DIR, "payload_only.png"), hide_tendons=True)
     env.close()
 
-    # 3) Drone carrying the payload: fly the hybrid MPC mission until the
+    # 3) Drone carrying the payload: the MPC director flies the task until the
     #    hook has picked the payload up and lifted it clear of the floor
-    env = make_env()
-    agent = HybridMPCAgent(env, verbose=True)
+    env = make_env(env_class=AdaptiveTransportDirectorAviary)
+    env.PAYLOAD_TERMINATION = True
+    env.set_scenario(**SCENARIO)
+    agent = WaypointMPCAgent(env)
     agent.reset()
     lifted_for = 0
-    while not agent.finished:
-        _, _, terminated, _, _ = agent.step()
+    for _ in range(int(30 / env.CTRL_TIMESTEP)):
+        _, _, terminated, _, _ = env.step(agent.action())
         if terminated:
-            raise RuntimeError("drone crashed before the picture was taken")
+            raise RuntimeError("episode ended before the picture was taken")
         payload_z = env.data.qpos[env.target_qpos_adr + 2]
         if agent.attached and payload_z > c[2] + 0.25:
             lifted_for += 1
-            if lifted_for > int(1.5 / agent.dt):  # let the swing settle
+            if lifted_for > int(1.5 / env.CTRL_TIMESTEP):  # let the swing settle
                 break
+    else:
+        raise RuntimeError("the payload was not lifted within 30 s")
     d = env.pos[0]
     p = env.data.qpos[env.target_qpos_adr:env.target_qpos_adr + 3]
     # look along the cylinder axis: the hook curls in the drone's y-z plane

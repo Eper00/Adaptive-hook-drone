@@ -13,6 +13,8 @@ Models and logs go to results/rl_<env_type>[_curriculum]/.
 Usage:
     python utilities/learn.py --env_type adaptive_velocity --timesteps 5000000 --curriculum_flag true
     python utilities/learn.py --env_type adaptive_director --timesteps 5000000 --curriculum_flag true
+    python utilities/learn.py --env_type adaptive_transport --timesteps 10000000 --curriculum_flag true \
+        --seed 1 --ent_coef 0.001 --output_dir results/seeds/transport_s1
 """
 
 import argparse
@@ -39,8 +41,8 @@ def adjust_difficulty(env, level,level_changed=True):
       1  light payload in ~50 % of the episodes, random initial yaw
       2  full payload range
 
-    Note: the wrapper only calls this after a level change, so level 0 runs
-    with the environment's default settings.
+    Note: the wrapper calls this with level_changed=True on the first reset
+    and after every level change.
     """
     if isinstance(env,AdaptiveTransportAviary) or isinstance(env,AdaptiveTransportDirectorAviary):
         if level_changed:
@@ -107,10 +109,13 @@ def train_single(
     total_timesteps: int = 100_000,
     output_dir: str = "results/rl_hover",
     curriculum_flag: bool = False,
+    seed=None,
+    ent_coef: float = 0.01,
 ):
     """Train one of the hook environments with PPO (8 parallel envs) and
     optional curriculum learning; the best model (by evaluation reward) and
-    the final model are saved to ``output_dir``."""
+    the final model are saved to ``output_dir``. ``seed`` seeds PPO and the
+    environments (training env i gets seed + i, the evaluation env seed + 100)."""
     try:
         from stable_baselines3 import PPO
         from stable_baselines3.common.env_util import make_vec_env
@@ -121,12 +126,13 @@ def train_single(
 
     print("=" * 60)
     print(f"Training Single-Drone {args.env_type} (PPO)")
-    print(f"  Timesteps: {total_timesteps}")
+    print(f"  Timesteps: {total_timesteps}, seed: {seed}, ent_coef: {ent_coef}")
     print("=" * 60)
     if curriculum_flag:
         output_dir += "_curriculum"
     else:
         output_dir = output_dir
+    eval_seed = None if seed is None else seed + 100
     # -----------------------------
     # Select environment class
     # -----------------------------
@@ -165,9 +171,10 @@ def train_single(
             difficulty_fn=adjust_difficulty
         ),
         n_envs=1,
+        seed=eval_seed,
     )
     else:
-        eval_env = make_final_env()
+        eval_env = make_vec_env(make_final_env, n_envs=1, seed=eval_seed)
 
 
     # -----------------------------
@@ -182,11 +189,12 @@ def train_single(
                 difficulty_fn=adjust_difficulty
             ),
             n_envs=8,
+            seed=seed,
         )
        
     else:
         # Normal vectorized env
-        env = make_vec_env(make_final_env, n_envs=8)
+        env = make_vec_env(make_final_env, n_envs=8, seed=seed)
     # (training with and without curriculum can be compared on the same env)
     # -----------------------------
     # Evaluation callback
@@ -224,7 +232,8 @@ def train_single(
         gamma=0.99,
         gae_lambda=0.95,
         clip_range=0.2,
-        ent_coef=0.01,
+        ent_coef=ent_coef,
+        seed=seed,
         device="cpu"
     )
 
@@ -252,11 +261,17 @@ if __name__ == "__main__":
     # adaptive_velocity / adaptive_transport / adaptive_director (see module docstring)
     parser.add_argument("--env_type", type=str, default="hover")
     parser.add_argument("--curriculum_flag",type=str, default="false")
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--ent_coef", type=float, default=0.01)
+    # default: results/rl_<env_type>; "_curriculum" is appended with curriculum
+    parser.add_argument("--output_dir", type=str, default=None)
     args = parser.parse_args()
 
    
     train_single(
         total_timesteps=args.timesteps,
-        output_dir=f"results/rl_{args.env_type}",
+        output_dir=args.output_dir or f"results/rl_{args.env_type}",
         curriculum_flag=args.curriculum_flag.lower() == "true",
+        seed=args.seed,
+        ent_coef=args.ent_coef,
         )

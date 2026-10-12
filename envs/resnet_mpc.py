@@ -1,8 +1,8 @@
-"""Director MPC with a ResNet-identified prediction model.
+"""ResNet-identified prediction model and the MPC solver that uses it.
 
-The model, its training and the MPC (docs/director_mpc_safety_filter.md,
-chapters 3 and 7). The same model is the prediction model of the safety
-filter (predictive_safety_filter.py), whose stall takeover is this MPC.
+The model, its training and the MPC solver (docs/director_mpc_safety_filter.md).
+The director MPC (waypoint_mpc.py) and the safety filter
+(predictive_safety_filter.py, whose stall takeover is this solver) use it.
 
   * the network is one PyTorch module (``ResNetDynamics``). PyTorch trains
     it, and the MPC and the safety filter use the same module for the
@@ -32,8 +32,9 @@ payload before it is lifted (forces the model cannot know) are left out.
 Train / retrain (after a new velocity policy or physics changes):
     python -m multi_drone_mujoco.envs.resnet_mpc              # train on the cached runs
     python -m multi_drone_mujoco.envs.resnet_mpc --collect    # collect new runs first
-Use:
-    ResNetMPCAgent(env)       (play.py: --env_type adaptive_director_resnet_MPC)
+(the cached runs were collected with an earlier P-controller that followed a
+smooth reference of the pick-up task; --collect now uses
+director_mpc.collect, a P-controller on the env's waypoints)
 """
 
 import copy
@@ -50,17 +51,16 @@ from torch import nn
 from torch.func import jacrev, vmap
 
 from multi_drone_mujoco.envs.director_mpc import (
-    ATT, C, NU, NX, P, TENDON_HOLD, TH, THD, U_MAX, V,
-    DirectorWeights, StateTracker, collect, director_step, make_identification_env,
+    ATT, ATTD, C, NU, NX, P, TH, THD, TILT, U_MAX, V,
+    DirectorWeights, collect, hook_payload_contact, make_identification_env, measure_state,
+    payload_attached,
 )
-from multi_drone_mujoco.envs.mpc_mission import CONTACT_PHASES, MissionAgent, payload_attached
 
 MODEL_FILE = "results/mpc_director/resnet_model.pt"
-LEGACY_MODEL_FILE = "results/mpc_director/resnet_model.npz"   # earlier format, still readable
 DATA_FILE = "results/mpc_director/resnet_training_data.pkl"   # cached training runs
 DIRECTOR_POLICY = "results/final/rl_adaptive_director_curriculum/final_model.zip"
 N_IN = (NX - 3) + NU        # network input: every state except the position, plus the command
-N_OUT = 7                   # dv (3), dtheta_dot (2), dtilt (2)
+N_OUT = 11                  # dv (3), dtheta_dot (2), d(roll, pitch, yaw) (3), d(their rates) (3)
 
 
 ################################################################################
@@ -70,9 +70,12 @@ N_OUT = 7                   # dv (3), dtheta_dot (2), dtilt (2)
 class ResNetDynamics(nn.Module):
     """x_k+1 = x_k + f(x_k, u_k) of one mode (0: no payload, 1: payload attached).
 
-    The network predicts the velocity, swing-rate and tilt increments; the
-    rest of the state update is written out (position, the env's command
-    low-pass filter, the history entries). Works on batches (..., NX).
+    The network predicts the increments of the velocity, the swing rate,
+    the attitude and the attitude rates; the rest of the state update is
+    written out (position and swing angle integrated, the env's command
+    low-pass filter). The attitude is not integrated from its rate: the PPO
+    controller makes roll and yaw chatter within a control step, so the
+    sampled rates are aliased. Works on batches (..., NX).
     """
 
     def __init__(self, dt, alpha, with_swing, hidden=128, blocks=2):
@@ -103,20 +106,19 @@ class ResNetDynamics(nn.Module):
         """Next state; ``d`` is the velocity-offset estimate of the MPC."""
         r = self.network(torch.cat([x[..., 3:], u], dim=-1))
         dv = r[..., 0:3] if d is None else r[..., 0:3] + d
-        v, c, th, thd, tilt = x[..., V], x[..., C], x[..., TH], x[..., THD], x[..., ATT]
+        v, c, th, thd = x[..., V], x[..., C], x[..., TH], x[..., THD]
+        att, attd = x[..., ATT], x[..., ATTD]
         if self.with_swing:
             thd_next = thd + r[..., 3:5]
             th_next = th + self.dt * thd_next
         else:                                            # no payload: swing states stay 0
             th_next, thd_next = th, thd
-        return torch.cat([x[..., P] + self.dt * (v + 0.5 * dv),   # p (trapezoidal)
-                          v + dv,                                 # v
-                          v,                                      # v_prev
-                          c + self.alpha * (u - c),               # c (env low-pass filter)
-                          c,                                      # c_prev
-                          th_next, thd_next,                      # theta, theta_dot
-                          tilt + r[..., 5:7],                     # roll, pitch
-                          tilt], dim=-1)                          # roll_prev, pitch_prev
+        return torch.cat([x[..., P] + self.dt * (v + 0.5 * dv),       # p (trapezoidal)
+                          v + dv,                                     # v
+                          c + self.alpha * (u - c),                   # c (env low-pass filter)
+                          th_next, thd_next,                          # theta, theta_dot
+                          att + r[..., 5:8],                          # roll, pitch, yaw
+                          attd + r[..., 8:11]], dim=-1)               # their rates
 
     def rollout(self, x0, U, dist=None):
         """numpy interface like ``DirectorModel.rollout`` (analysis scripts):
@@ -147,17 +149,18 @@ def step_jacobians(model):
 
 def save_model(path, models):
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    torch.save({"dt": models[0].dt, "alpha": models[0].alpha,
+    torch.save({"nx": NX, "dt": models[0].dt, "alpha": models[0].alpha,
                 "hidden": models[0].inp.out_features, "blocks": len(models[0].blocks),
                 "state": [m.state_dict() for m in models]}, path)
 
 
 def load_model(path=MODEL_FILE):
-    """[mode 0 model, mode 1 model]; reads this module's .pt files and the
-    earlier .npz format (same network)."""
-    if path.endswith(".npz"):
-        return _load_legacy(path)
+    """[mode 0 model, mode 1 model] from a file written by ``save_model``."""
     ckpt = torch.load(path, weights_only=True)
+    if ckpt.get("nx") != NX:
+        raise ValueError(f"{path} is a model of a different state layout "
+                         f"(nx={ckpt.get('nx', 23)}, now {NX}): retrain it with "
+                         "'python -m multi_drone_mujoco.envs.resnet_mpc --collect'")
     models = []
     for mode, state in enumerate(ckpt["state"]):
         m = ResNetDynamics(ckpt["dt"], ckpt["alpha"], bool(mode), ckpt["hidden"], ckpt["blocks"])
@@ -174,31 +177,11 @@ def load_or_train(path=MODEL_FILE):
     return load_model(path)
 
 
-def _load_legacy(path):
-    d = np.load(path)
-    models = []
-    for mode in (0, 1):
-        g = lambda k: torch.tensor(d[f"m{mode}_{k}"])
-        state = {"mu": g("mu"), "sd": g("sd"), "out_scale": g("out_scale"),
-                 "inp.weight": g("W_in"), "inp.bias": g("b_in"),
-                 "out.weight": g("W_out"), "out.bias": g("b_out"), "skip.weight": g("W_skip")}
-        n_blocks = int(d["n_blocks"])
-        for j in range(n_blocks):
-            for layer, (W, b) in ((0, ("W1", "b1")), (2, ("W2", "b2"))):
-                state[f"blocks.{j}.{layer}.weight"] = g(f"blk{j}_{W}")
-                state[f"blocks.{j}.{layer}.bias"] = g(f"blk{j}_{b}")
-        m = ResNetDynamics(float(d["dt"]), float(d["alpha"]), bool(mode),
-                           hidden=state["inp.weight"].shape[0], blocks=n_blocks)
-        m.load_state_dict(state)
-        models.append(m)
-    return models
-
-
 ################################################################################
 # TRAINING DATA
 ################################################################################
 
-# training / validation runs (seeds differ from the ones analyse_identification tests on)
+# training / validation runs (seeds differ from the ones validate_resnet tests on)
 P_TRAIN = [(s, 0.15) for s in (100, 101, 102, 103)] + [(s, 0.6) for s in (104, 105, 106, 107)]
 P_VAL = [(108, 0.4)]
 RL_TRAIN = tuple(range(300, 324))
@@ -206,22 +189,12 @@ RL_VAL = (400, 401, 402, 403)
 RL_DURATION = 15.0
 
 
-def hook_payload_contact(env):
-    """Any contact between the hook and the payload (cylinder, holder, connectors)."""
-    m, d = env.model, env.data
-    hook = {m.geom(f"segment_geom_{i}").id for i in range(1, 8)}
-    payload = {env.target_geom_id, env.left_connector_geom_id,
-               env.right_connector_geom_id, m.geom("holder_plate").id}
-    return any((c.geom1 in hook and c.geom2 in payload) or (c.geom2 in hook and c.geom1 in payload)
-               for c in d.contact[:d.ncon])
-
-
 def _collect_p(args):
     """P-controller mission run (director_mpc.collect) as a training sequence."""
     seed, excite = args
     r = collect(seed, excite=excite, verbose=False)
     att = r["attached"].astype(bool)
-    contact = np.isin(r["phase"], CONTACT_PHASES) & ~att
+    contact = r["contact"].astype(bool) & ~att
     return {"x": r["x"], "u": r["u"], "attached": att, "valid": ~contact, "contact": contact,
             "source": "P", "seed": seed}
 
@@ -250,21 +223,19 @@ def _collect_rl(args):
     env = make_rl_env(seed, duration)
     obs, _ = env.reset(seed=seed)
     env.prev_action = None
-    tracker = StateTracker(env)
     rest_z = env.data.qpos[env.target_qpos_adr + 2]
     attached = False
     log = {k: [] for k in ("x", "u", "attached", "valid", "contact")}
     while True:
-        x = tracker.measure(attached)
+        x = measure_state(env, attached)
         action, _ = policy.predict(obs, deterministic=True)
         action = np.asarray(action, dtype=float)
         contact = hook_payload_contact(env)
         log["x"].append(x)
         log["u"].append(np.clip(action[0:3], -1.0, 1.0))
         log["attached"].append(attached)
-        log["valid"].append((attached or not contact) and np.all(np.abs(x[ATT]) < np.radians(60)))
+        log["valid"].append((attached or not contact) and np.all(np.abs(x[TILT]) < np.radians(60)))
         log["contact"].append(contact and not attached)
-        tracker.advance(x)
         obs, _, terminated, truncated, _ = env.step(action)
         attached = payload_attached(env, rest_z, attached)
         if terminated or truncated:
@@ -363,9 +334,11 @@ def train(path=MODEL_FILE, epochs=150, horizon=24, reuse_data=True, threads=8, v
         inc = y[:, 0] - x0
         model.out_scale.copy_(torch.cat([inc[:, V].std(0),
                                          inc[:, THD].std(0) if mode else torch.ones(2, dtype=torch.float64),
-                                         inc[:, ATT].std(0)]) + 1e-6)
-        # loss: velocity and tilt (+ swing), each channel scaled by its spread
-        ch = [3, 4, 5, 19, 20] + ([15, 16, 17, 18] if mode else [])
+                                         inc[:, ATT].std(0), inc[:, ATTD].std(0)]) + 1e-6)
+        # loss: velocity, attitude and attitude rates (+ swing), each channel
+        # scaled by its spread
+        idx = lambda sl: list(range(sl.start, sl.stop))
+        ch = idx(V) + idx(ATT) + idx(ATTD) + (idx(TH) + idx(THD) if mode else [])
         w = 1.0 / (y.reshape(-1, NX)[:, ch].std(0) + 1e-3) ** 2
 
         def loss_fn(x0_, u_, y_, H):
@@ -408,8 +381,7 @@ def train(path=MODEL_FILE, epochs=150, horizon=24, reuse_data=True, threads=8, v
 class ResNetMPC:
     """Gauss-Newton SQP MPC on the ResNet model (single shooting, condensed QP).
 
-    Same interface as ``DirectorMPC``: ``solve(mode, x0, p_ref, v_ref,
-    u_prev)`` -> (X [NX, N+1], U [NU, N], info).
+    ``solve(mode, x0, p_ref, v_ref, u_prev)`` -> (X [NX, N+1], U [NU, N], info).
     """
 
     TILT_PENALTY = 1e4      # tilt-limit violation in the line search cost
@@ -429,7 +401,7 @@ class ResNetMPC:
         self.sqp_iterations = sqp_iterations
         nz = NU * N
         self.D = np.eye(nz) - np.eye(nz, k=-NU)          # D U = (u_0, u_1 - u_0, ...)
-        self.tilt_rows = (np.arange(N)[:, None] * NX + np.array([19, 20])).ravel()
+        self.tilt_rows = (np.arange(N)[:, None] * NX + np.arange(TILT.start, TILT.stop)).ravel()
         dense = {"h": ca.Sparsity.dense(nz, nz)}
         opts = {"error_on_fail": False}
         self.qp = ca.conic("qp", qp_solver, dict(dense, a=ca.Sparsity.dense(2 * N, nz)), opts)
@@ -501,7 +473,7 @@ class ResNetMPC:
 
         def cost(X, U):
             r = residual(X, U)
-            viol = np.maximum(np.abs(X[1:, ATT]) - self.max_tilt, 0.0).sum()
+            viol = np.maximum(np.abs(X[1:, TILT]) - self.max_tilt, 0.0).sum()
             return 0.5 * r @ r + self.TILT_PENALTY * viol
 
         # warm start: the previous plan shifted by one step
@@ -530,7 +502,7 @@ class ResNetMPC:
         self._plan = U
         self._last = (mode, x0.copy(), U[0].copy())
         return X.T, U.T, {"solve_time": time.perf_counter() - t0, "qp_failures": qp_failures,
-                          "max_tilt_pred": float(np.abs(X[1:, ATT]).max())}
+                          "max_tilt_pred": float(np.abs(X[1:, TILT]).max())}
 
     def _qp_step(self, H, g, Gamma, X, U):
         """QP for the step dU: min 0.5 dU^T H dU + g^T dU subject to the
@@ -539,7 +511,7 @@ class ResNetMPC:
         dropped. Returns None if the QP fails."""
         u = U.ravel()
         box = {"h": H, "g": g, "lbx": -self.u_max - u, "ubx": self.u_max - u}
-        tilt = X[1:, ATT].ravel()
+        tilt = X[1:, TILT].ravel()
         sol = self.qp(a=Gamma[self.tilt_rows], lba=-self.max_tilt - tilt,
                       uba=self.max_tilt - tilt, **box)
         if not self.qp.stats()["success"]:
@@ -548,49 +520,6 @@ class ResNetMPC:
                 return None
         dU = np.asarray(sol["x"]).ravel()
         return dU.reshape(self.N, NU) if np.all(np.isfinite(dU)) else None
-
-
-################################################################################
-# AGENT
-################################################################################
-
-class ResNetMPCAgent(MissionAgent):
-    """Flies the pick-and-place mission with ``ResNetMPC`` on top of the PPO
-    velocity controller (use like an RL policy, see MissionAgent)."""
-
-    tendon_hold = TENDON_HOLD
-
-    def __init__(self, env, model_file=MODEL_FILE, horizon=40, max_time=45.0, verbose=False,
-                 max_tilt=np.pi / 2):
-        super().__init__(env, horizon, max_time, verbose)
-        self.models = load_or_train(model_file)
-        self.mpc = ResNetMPC(self.models, horizon=horizon, max_tilt=max_tilt)
-
-    def _reset_controller(self):
-        self.env.prev_action = None
-        self.mpc.reset()
-        self.tracker = StateTracker(self.env)
-        self.u_prev = np.zeros(NU)
-
-    def _measure(self, attached):
-        return self.tracker.measure(attached)
-
-    def _control(self, mode, x, p_ref, v_ref):
-        X_pred, U_plan, info = self.mpc.solve(mode, x, p_ref, v_ref, self.u_prev)
-        u = U_plan[:, 0]
-        self.u_prev = u
-        return (u, self.mission.tendon), u, X_pred, info
-
-    def _plant_step(self, action):
-        u, tendon = action
-        self.tracker.advance(self.x)
-        return director_step(self.env, u, (tendon, -tendon))
-
-    def _on_attach(self):
-        self._say("payload attached -> switching to drone+pendulum model")
-
-    def _replay(self, mode, x0, U):
-        return self.models[mode].rollout(x0, U)
 
 
 if __name__ == "__main__":

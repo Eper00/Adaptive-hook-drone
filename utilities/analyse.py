@@ -10,10 +10,8 @@ velocity       RL velocity controller (AdaptiveVelocityAviary)
                  reference and the tracking errors are plotted
 
 director       RL director (AdaptiveTransportDirectorAviary + velocity policy)
-director_mpc   Director MPC (DirectorMPCAgent) in the same environment
-director_resnet_mpc
-               Director MPC with the ResNet-identified model
-               (ResNetMPCAgent, resnet_mpc.py) in the same environment
+director_mpc   MPC director: ResNet MPC on the active waypoint
+               (WaypointMPCAgent, waypoint_mpc.py) in the same environment
 director_safety
                RL director on AdaptiveTransportDirectorAviarySafetyFilter: the
                MPC safety filter checks every RL command and replaces it when
@@ -33,7 +31,7 @@ director_safety
                  show when / where / how strongly and why (constraint, rate,
                  stall takeover, hook-contact escape) the filter overrides
 
-compare        runs director, director_mpc, director_resnet_mpc and
+compare        runs director, director_mpc and
                director_safety on the same scenarios (same seeds) and compares
                their outcomes, timing, attitude / swing and commands
 
@@ -81,8 +79,7 @@ import matplotlib
 import mujoco
 import numpy as np
 
-from multi_drone_mujoco.envs.director_mpc import measure_swing
-from multi_drone_mujoco.envs.mpc_mission import payload_attached
+from multi_drone_mujoco.envs.director_mpc import measure_swing, payload_attached
 
 DEFAULT_MODELS = {
     "velocity": "results/final/rl_adaptive_velocity_curriculum/final_model.zip",
@@ -93,6 +90,9 @@ OUTCOME_COLORS = {"success": "tab:green", "payload": "tab:orange",
                   "stability": "tab:red", "unfinished": "tab:gray"}
 STAGES = ["take-off", "pre-grasp", "grasp", "goal"]   # env waypoint index
 GOAL_TOLERANCE = 0.15      # [m] drone-goal distance counted as "goal reached"
+# [s] the payload has to stay on the hook this long after the goal is reached
+# for a success (what happens later in the episode does not count)
+GOAL_HOLD_TIME = 5.0
 # why the safety filter overrode the controller (see the safety filter env)
 REASONS = ["none", "constraint", "rate", "stall", "contact"]
 REASON_COLORS = {"constraint": "tab:red", "rate": "tab:orange", "stall": "tab:blue",
@@ -449,44 +449,52 @@ class RLDirector:
 
 
 class MPCDirector:
-    """Director MPC agent (plans the same velocity commands); ``resnet=True``
-    uses the ResNet-identified model (resnet_mpc.py) instead of the linear one."""
-    name = "Director MPC"
+    """MPC director: ResNet MPC that minimizes the distance to the env's
+    active waypoint (waypoint_mpc.py), with the env's own waypoints and tendon
+    logic and episodes until max_time as for the RL. Its horizon equals the
+    safety filter's (FILTER_HORIZON)."""
+    name = "MPC director"
 
-    def __init__(self, env, resnet=False):
+    def __init__(self, env):
+        from multi_drone_mujoco.envs.adaptive_hook_director_safety_filter import FILTER_HORIZON
+        from multi_drone_mujoco.envs.waypoint_mpc import WaypointMPCAgent
         self.env = env
-        if resnet:
-            from multi_drone_mujoco.envs.resnet_mpc import ResNetMPCAgent
-            self.agent = ResNetMPCAgent(env)
-            self.name = "Director ResNet-MPC"
-        else:
-            from multi_drone_mujoco.envs.director_mpc import DirectorMPCAgent
-            self.agent = DirectorMPCAgent(env)
+        self.agent = WaypointMPCAgent(env, horizon=FILTER_HORIZON)
 
     def reset(self, max_time):
-        self.agent.max_time = max_time
+        self.env.EPISODE_LEN_SEC = max_time       # instance only
+        self.env.prev_action = None
         self.agent.reset()
 
     def step(self):
-        _, _, terminated, truncated, _ = self.agent.step()
-        cmd = (np.asarray(self.agent.log["u"][-1], float) if self.agent.log["u"]
-               else np.zeros(3))
+        action = self.agent.action()
+        _, _, terminated, truncated, _ = self.env.step(action)
+        cmd = np.asarray(action[0:3], float)
         return cmd, terminated, truncated, {"cmd_rl": cmd, "intervened": False, "reason": 0}
 
 
-def classify(ep):
+def classify(ep, hold_time=GOAL_HOLD_TIME):
     """Outcome of an episode and when / at which stage it was decided.
 
+    success    : goal reached with the payload, and the payload still on the
+                 hook ``hold_time`` later (or at the end of a shorter
+                 episode) without a crash; what happens after the hold does
+                 not count
     stability  : the drone flipped (|roll| or |pitch| > pi/2) or hit the floor
     payload    : the payload was lifted but lost again
     unfinished : no crash, payload not lost, but the goal was not reached
                  with the payload in time (e.g. never grasped, too slow)
-    success    : goal reached with the payload, still carried at the end
     """
     att = ep["attached"].astype(bool)
     goal_dist = np.linalg.norm(ep["p"] - ep["goal"], axis=1)
     reached = np.nonzero(att & (goal_dist < GOAL_TOLERANCE))[0]
     k_end = len(ep["t"]) - 1
+    if reached.size:
+        k0 = reached[0]
+        dt = ep["t"][1] - ep["t"][0] if len(ep["t"]) > 1 else 1.0
+        k1 = min(k0 + int(round(hold_time / dt)), k_end)
+        if att[k0:k1 + 1].all() and not (ep["crashed"] and k1 == k_end):
+            return "success", k0
     if ep["crashed"]:
         return "stability", k_end
     lifted = np.nonzero(att)[0]
@@ -554,8 +562,7 @@ def run_director_episode(controller, env, seed, max_time, render_on, overlay, sc
 
 CONTROLLERS = {
     "director": ("RL director", False),
-    "director_mpc": ("Director MPC", False),
-    "director_resnet_mpc": ("Director ResNet-MPC", False),
+    "director_mpc": ("MPC director", False),
     "director_safety": ("RL director + safety filter", True),
 }
 
@@ -563,8 +570,8 @@ CONTROLLERS = {
 def make_controller(kind, args):
     name, safety = CONTROLLERS[kind]
     env = make_director_env(args.render, safety_filter=safety)
-    if kind in ("director_mpc", "director_resnet_mpc"):
-        controller = MPCDirector(env, resnet=kind == "director_resnet_mpc")
+    if kind == "director_mpc":
+        controller = MPCDirector(env)
     else:
         controller = RLDirector(env, args.model_path or DEFAULT_MODELS["director"], name=name)
     return env, controller
@@ -1064,8 +1071,8 @@ def plot_comparison(results, out):
 ################################################################################
 
 SCENARIO_METHODS = ["director", "director_mpc", "director_safety"]
-METHOD_COLORS = {"director": "tab:blue", "director_mpc": "tab:purple",
-                 "director_resnet_mpc": "tab:olive", "director_safety": "tab:cyan"}
+METHOD_COLORS = {"director": "tab:blue", "director_mpc": "tab:orange",
+                 "director_safety": "tab:cyan"}
 
 
 def scenario_from_env(env, seed):
@@ -1374,7 +1381,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--test", choices=["velocity", "director", "director_mpc",
-                                           "director_resnet_mpc", "director_safety", "compare",
+                                           "director_safety", "compare",
                                            "scenario"],
                         default="velocity")
     parser.add_argument("--model_path", type=str, default=None,

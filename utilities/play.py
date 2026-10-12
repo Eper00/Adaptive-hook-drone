@@ -5,20 +5,17 @@ env_type:
     adaptive_transport         RL rotor-level transport policy (--model_path)
     adaptive_director          RL director policy              (--model_path)
     adaptive_director_safety   RL director + MPC safety filter (--model_path)
-    adaptive_transport_MPC     rotor-level hybrid MPC (no model needed)
-    adaptive_director_MPC      director MPC on the RL velocity controller
-    adaptive_director_resnet_MPC  director MPC with the ResNet-identified model (resnet_mpc.py)
+    adaptive_director_MPC      MPC director (ResNet MPC on the active waypoint, waypoint_mpc.py)
+                               on the RL velocity controller (no --model_path)
 With --curriculum_flag true the envs are set to their final curriculum level.
 Success / failure statistics are printed for the director and MPC types
 (utilities/analyse.py has the detailed Monte Carlo analysis).
 
 Usage:
     python -m utilities.play --model_path results/rl_adaptive_transport/best_model.zip --env_type adaptive_transport
-    python -m utilities.play --env_type adaptive_transport_MPC     # rotor-level hybrid MPC
-    python -m utilities.play --env_type adaptive_director_MPC      # MPC on the RL velocity controller
+    python -m utilities.play --env_type adaptive_director_MPC     # MPC director
     python -m utilities.play --model_path results/final/rl_adaptive_director_curriculum/best_model.zip \
         --env_type adaptive_director_safety                        # RL director + MPC safety filter
-        (add --filter_model arx to use the ARX model in the filter instead of the ResNet)
 """
 
 import argparse
@@ -28,8 +25,7 @@ import time
 
 
 
-def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum_flag: bool =True,
-         filter_model: str = "resnet"):
+def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum_flag: bool =True):
     """Run ``episodes`` episodes of a policy (or MPC agent) with the viewer
     and print the success / failure statistics."""
     try:
@@ -42,7 +38,7 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
     from multi_drone_mujoco.envs.adaptive_hook_velocity import AdaptiveVelocityAviary
     from multi_drone_mujoco.envs.adaptive_hook_director_velocity import AdaptiveTransportDirectorAviary
     ctrl_freq=48
-    # MPC agents replace the policy: they step the env themselves (agent.step())
+    # the MPC agent replaces the policy (agent.action() instead of model.predict)
     mpc_flag = env_type.endswith("_MPC")
     if not mpc_flag:
         print(f"Loading model from: {model_path}")
@@ -58,24 +54,14 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
         from multi_drone_mujoco.envs.adaptive_hook_director_safety_filter import (
             AdaptiveTransportDirectorAviarySafetyFilter,
         )
-        # filter_model: "resnet" (default, the more accurate model) or "arx"
         env = AdaptiveTransportDirectorAviarySafetyFilter(ctrl_freq=ctrl_freq, sim_freq=240,
-                                                          render_mode="human", model=filter_model)
-    elif env_type == "adaptive_transport_MPC":
-        from multi_drone_mujoco.envs.hybrid_mpc import HybridMPCAgent
-        env = AdaptiveTransportAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
-        env.PAYLOAD_TERMINATION = True
-        agent = HybridMPCAgent(env, verbose=True)
+                                                          render_mode="human")
     elif env_type == "adaptive_director_MPC":
-        from multi_drone_mujoco.envs.director_mpc import DirectorMPCAgent
+        from multi_drone_mujoco.envs.adaptive_hook_director_safety_filter import FILTER_HORIZON
+        from multi_drone_mujoco.envs.waypoint_mpc import WaypointMPCAgent
         env = AdaptiveTransportDirectorAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
         env.PAYLOAD_TERMINATION = True
-        agent = DirectorMPCAgent(env, verbose=True)
-    elif env_type == "adaptive_director_resnet_MPC":
-        from multi_drone_mujoco.envs.resnet_mpc import ResNetMPCAgent
-        env = AdaptiveTransportDirectorAviary(ctrl_freq=ctrl_freq, sim_freq=240, render_mode="human")
-        env.PAYLOAD_TERMINATION = True
-        agent = ResNetMPCAgent(env, verbose=True)
+        agent = WaypointMPCAgent(env, horizon=FILTER_HORIZON)
     else:
         raise ValueError(f"Unknown env_type: {env_type}")
     # Episode statistics (director and MPC types)
@@ -127,39 +113,22 @@ def play(model_path: str, env_type: str = "hover", episodes: int = 3, curriculum
                 time.sleep(0.01)
                
             elif env_type in ("adaptive_director", "adaptive_director_MPC",
-                              "adaptive_director_resnet_MPC", "adaptive_director_safety"):
+                              "adaptive_director_safety"):
                 time.sleep(0.01)
             env.render()
             
             if mpc_flag:
-                # terminated = crash, truncated = mission finished / time out
-                obs, reward, terminated, truncated, info = agent.step()
+                action = agent.action()
             else:
                 action, _ = model.predict(obs, deterministic=True)
-                obs, reward, terminated, truncated, info = env.step(action)
+            obs, reward, terminated, truncated, info = env.step(action)
             total_reward += reward
             steps += 1
             
         # --- episode evaluation ---
-        # MPC: success = take-off, pick-up and goal visited, payload still carried
-        if mpc_flag:
-            if agent.success:
-                success += 1
-            else:
-                failed += 1
-                if agent.crashed:
-                    failed_stability += 1
-                elif [v[0] for v in agent.mission.visited] != ["takeoff", "pickup", "goal"]:
-                    failed_incomplete += 1
-                else:
-                    failed_payload += 1
-            print(agent.summary())
-            print(f"Failed stab: {failed_stability}, failed incomplete {failed_incomplete}, failed payload {failed_payload}")
-            print(f"Success: {success}, Failed: {failed}, Ratio: {success/(success+failed) if (success+failed)>0 else 0}")
-            print(f"  Episode {ep + 1}: steps={steps}")
-        # RL director: success = episode ran to the time limit with the goal
-        # waypoint active; failures are counted by cause (the causes can overlap)
-        elif env_type in ("adaptive_director", "adaptive_director_safety"):
+        # director (RL / MPC): success = episode ran to the time limit with the
+        # goal waypoint active; failures are counted by cause (they can overlap)
+        if env_type in ("adaptive_director", "adaptive_director_MPC", "adaptive_director_safety"):
             if env_type == "adaptive_director_safety":
                 print(f"  safety filter interventions: {env.intervention_count}/{env.filter_steps} steps"
                       f" ({100 * env.intervention_count / max(env.filter_steps, 1):.1f}%):"
@@ -209,8 +178,5 @@ if __name__ == "__main__":
     parser.add_argument("--env_type", type=str, default="hover")
     parser.add_argument("--episodes", type=int, default=3)
     parser.add_argument("--curriculum_flag",type=str, default="true")
-    # adaptive_director_safety: prediction model of the safety filter
-    parser.add_argument("--filter_model", choices=["resnet", "arx"], default="resnet")
     args = parser.parse_args()
-    play(args.model_path, args.env_type, args.episodes,curriculum_flag=args.curriculum_flag.lower() == "true",
-         filter_model=args.filter_model)
+    play(args.model_path, args.env_type, args.episodes,curriculum_flag=args.curriculum_flag.lower() == "true")
