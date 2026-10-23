@@ -390,7 +390,7 @@ class ResNetMPC:
     TILT_PENALTY = 1e4      # tilt-limit violation in the line search cost
 
     def __init__(self, models, horizon=40, weights=None, u_max=U_MAX, max_tilt=np.pi / 2,
-                 disturbance_gain=0.05, sqp_iterations=5, qp_solver="daqp", max_threads=4):
+                 disturbance_gain=0.0, sqp_iterations=5, qp_solver="daqp", max_threads=4):
         # small matrices: more than ~4 threads only add overhead; a lower limit
         # of the caller (e.g. OMP_NUM_THREADS=1 in parallel workers) is kept
         torch.set_num_threads(min(max_threads, torch.get_num_threads()))

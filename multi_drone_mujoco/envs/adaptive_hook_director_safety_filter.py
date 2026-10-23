@@ -61,10 +61,13 @@ class AdaptiveTransportDirectorAviarySafetyFilter(AdaptiveTransportDirectorAviar
         super().__init__(*args, **kwargs)
         models = load_or_train(model_file or MODEL_FILE)
         # director MPC (same model) that takes over when the controller stalls
-        self.takeover_mpc = ResNetMPC(models, horizon=filter_horizon, u_max=U_MAX)
+        # no velocity-offset estimate: the model is used as identified (as in waypoint_mpc.py)
+        self.takeover_mpc = ResNetMPC(models, horizon=filter_horizon, u_max=U_MAX,
+                                      disturbance_gain=0.0)
         self.safety_filter = PredictiveSafetyFilter(models, horizon=filter_horizon,
                                                     constraints=constraints or SafetyConstraints(),
-                                                    dt=self.CTRL_TIMESTEP, alpha=self.alpha)
+                                                    dt=self.CTRL_TIMESTEP, alpha=self.alpha,
+                                                    disturbance_gain=0.0)
         self.stall_distance = stall_distance
         self.stall_time = stall_time
         self.waypoint_tolerance = waypoint_tolerance

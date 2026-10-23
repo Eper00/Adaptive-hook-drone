@@ -152,7 +152,7 @@ class PredictiveSafetyFilter:
     # (11 rescued, 2 broken), w0 = 10 -> 294 (12 rescued, 1 broken), w0 = 20 /
     # 30 -> 288 / 289; hard limits on the intervention (no_reversal,
     # max_deviation) -> 288-291 (2026-10-12)
-    def __init__(self, models, horizon=36, constraints=None, u_max=1.0, disturbance_gain=0.05,
+    def __init__(self, models, horizon=36, constraints=None, u_max=1.0, disturbance_gain=0.0,
                  max_disturbance=0.01, w0=10.0, w1=0.1, w_du=0.5, sqp_iterations=2, dt=1.0 / 48.0,
                  alpha=0.1, qp_solver="daqp"):
         self.models = [m.requires_grad_(False) for m in models]
