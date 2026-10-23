@@ -14,33 +14,50 @@ loop (env low-pass filter -> PPO velocity controller -> drone + payload):
    is restricted to a climb (u_z >= escape_climb, |u_x|, |u_y| <=
    escape_lateral) until the contact is gone and the drone is level again
    (at most ``escape_time`` per trigger)                           ["contact"]
-2. Command-change limit (optional, off by default): jumps larger than
-   ``max_step`` or direction changes larger than ``max_turn``        ["rate"]
-3. Certification. u_rl is certified if, applied now, a continuation of
-   commands exists that keeps the predicted state inside the constraints
-   over the horizon (tilt, altitude, speed, payload swing). The model is
-   linearized along the nominal prediction (u_rl, then the previous plan),
-   the constraints are checked with a QP, and the resulting plan is verified
-   with the nonlinear model. A certified command is applied unchanged.
+2. Command-change limit. The PPO velocity controller tracks the low-pass
+   filtered command c_k+1 = c_k + alpha (u - c_k), not u itself (the RL
+   director switches u between the bounds and lets the filter average it).
+   A proposal that changes c faster than ``max_ref_accel`` per axis is
+   clipped to that rate: |u - c_k| <= max_ref_accel dt / alpha (e.g.
+   g tan(15 deg), the acceleration a 15 deg tilt sustains). Optionally,
+   jumps of u larger than ``max_step`` or direction changes larger than
+   ``max_turn`` are limited as well. All three are off by default: the RL
+   director commands bang-bang (u jumps between about +1 and -1 and the
+   low-pass filter averages it), so a per-step limit clips almost every
+   step and shifts the average command the RL intends. With g tan(15 deg)
+   it clipped ~95 % of the steps, the drone could not settle at the
+   waypoints and lost more payloads (300 scenarios: 259 successes against
+   279 without the limit and 271 for the RL alone)                  ["rate"]
+3. Certification. The (clipped) proposal is certified if, applied now, a
+   continuation of commands exists that keeps the predicted state inside the
+   constraints over the horizon (tilt, altitude, speed, payload swing). The
+   model is linearized along the nominal prediction (the proposal, then the
+   previous plan), the constraints are checked with a QP, and the resulting
+   plan is verified with the nonlinear model. A certified command is applied
+   unchanged (if it was clipped: reason "rate").
 4. Intervention. Otherwise the admissible command closest to u_rl is
    applied (first command of)
 
        min  w0 |u_0 - u_rl|^2 + w1 sum_k |u_k - u_rl|^2 + w_du |du|^2
             + sum_g (rho_g s_g^2 + rho1_g s_g)
        s.t. lb_k - s_g <= y_k(U) <= ub_k + s_g,  s_g >= 0
+            |tilt_k| <= hard_max_tilt
 
    solved as a sequence of QPs on the linearized model (Gauss-Newton). The
    slacks keep the problem feasible; their weights set the priorities
-   tilt > altitude > speed > swing                                ["constraint"]
+   tilt > altitude > speed > swing. The tilt is soft at ``max_tilt`` (15 deg,
+   which triggers the intervention) and hard at ``hard_max_tilt`` (60 deg,
+   below the 90 deg where an episode counts as flipped). If the linearized
+   QP cannot meet the hard bound, it is solved without it      ["constraint"]
 
 If the measured state already violates a bound (e.g. the payload already
 swings more than the limit), that bound is relaxed to the current value and
 has to shrink by the factor ``contraction`` per step, instead of demanding
 an immediate return that no command can achieve.
 
-The filter works with any model that provides ``casadi_step()`` (the
-ResNet model of director_resnet_mpc.py, the more accurate one, see
-utilities/analyse_identification.py, or the ARX DirectorModel).
+The prediction model is the ResNet model of resnet_mpc.py, a PyTorch module
+m(x, u, d) -> x_next. Rollouts and Jacobians come from PyTorch (``torch.func``),
+the QPs are solved with DAQP.
 """
 
 import time
@@ -48,12 +65,14 @@ from dataclasses import dataclass
 
 import casadi as ca
 import numpy as np
+import torch
 
-from multi_drone_mujoco.envs.director_mpc import NU, NX, quiet_qp
+from multi_drone_mujoco.envs.director_mpc import C, NU, NX, TH, TILT, V
+from multi_drone_mujoco.envs.resnet_mpc import rollout, step_jacobians
 
-TILT_IDX = (19, 20)
-SPEED_IDX = (3, 4, 5)
-SWING_IDX = (15, 16)
+TILT_IDX = tuple(range(TILT.start, TILT.stop))     # roll, pitch (world frame)
+SPEED_IDX = tuple(range(V.start, V.stop))
+SWING_IDX = tuple(range(TH.start, TH.stop))
 ALT_IDX = 2
 
 
@@ -61,7 +80,8 @@ ALT_IDX = 2
 class SafetyConstraints:
     """Limits of the safety filter (see the module docstring)."""
     # state constraints over the horizon
-    max_tilt: float = np.radians(30.0)       # |roll|, |pitch| (world frame) [rad]
+    max_tilt: float = np.radians(15.0)       # |roll|, |pitch| (world frame), soft [rad]
+    hard_max_tilt: float = np.radians(60.0)  # hard tilt bound of the intervention [rad] (None: off)
     min_altitude: float = 0.3                # drone height [m]
     max_speed: float = 1.0                   # |v| per axis [m/s]
     max_swing: float = np.radians(45.0)      # |payload swing| per axis [rad] (None: off)
@@ -72,16 +92,24 @@ class SafetyConstraints:
     escape_lateral: float = 0.0              # |u_x|, |u_y| <= this while escaping [m/s]
     escape_time: float = 0.5                 # longest escape per trigger [s]
     escape_release_tilt: float = np.radians(8.0)   # escape ends: no contact, tilt below [rad]
-    # command-change limits (None disables them)
+    # command-change limits (None disables them; off by default, see the
+    # module docstring)
+    max_ref_accel: float = None              # |c_k+1 - c_k| / dt per axis of the filtered
+                                             # command the PPO tracks [m/s^2], e.g. 9.81 tan 15 deg
     max_step: float = None                   # |u_k - u_k-1| per step [m/s]
     max_turn: float = None                   # direction change per step [rad] ...
     turn_min_speed: float = 0.1              # ... checked when both commands exceed this
+    # limits of an intervention's first command with respect to the RL proposal
+    # (not of the contact escape; off by default)
+    no_reversal: bool = False                # per axis no sign opposite to u_rl
+    max_deviation: float = None              # |u_0 - u_rl| per axis [m/s]
 
 
 def tilt_angle(x):
     """Angle between the body z axis and the vertical from the world-frame
     roll / pitch of the state vector [rad]."""
-    return float(np.arctan(np.hypot(np.tan(x[19]), np.tan(x[20]))))
+    roll, pitch = x[TILT]
+    return float(np.arctan(np.hypot(np.tan(roll), np.tan(pitch))))
 
 
 def hook_obstacle_contact(env, attached):
@@ -111,18 +139,24 @@ def hook_obstacle_contact(env, attached):
 class PredictiveSafetyFilter:
     """Model-based safety filter for velocity commands (see module docstring).
 
-    models: [mode 0 model, mode 1 model], each with ``casadi_step()`` ->
-            F(x, u, d) = x_next and ``disturbance_map()``.
+    models: [mode 0 model, mode 1 model], PyTorch modules m(x, u, d) -> x_next
+            (``ResNetDynamics`` of resnet_mpc.py).
     """
 
     GROUPS = ("tilt", "altitude", "speed", "swing")
     SLACK = {"tilt": (1e6, 1e4), "altitude": (1e5, 1e3), "speed": (1e4, 1e2), "swing": (1e3, 10.0)}
     TOL = {"tilt": np.radians(1.0), "altitude": 0.01, "speed": 0.03, "swing": np.radians(2.0)}
 
+    # w0 = 10 (instead of 1): an intervention stays closer to the RL proposal.
+    # 300 scenarios (success = goal + 5 s hold), RL alone 283: w0 = 1 -> 292
+    # (11 rescued, 2 broken), w0 = 10 -> 294 (12 rescued, 1 broken), w0 = 20 /
+    # 30 -> 288 / 289; hard limits on the intervention (no_reversal,
+    # max_deviation) -> 288-291 (2026-10-12)
     def __init__(self, models, horizon=36, constraints=None, u_max=1.0, disturbance_gain=0.05,
-                 max_disturbance=0.01, w0=1.0, w1=0.1, w_du=0.5, sqp_iterations=2, dt=1.0 / 48.0,
-                 threads=8):
-        self.models = models
+                 max_disturbance=0.01, w0=10.0, w1=0.1, w_du=0.5, sqp_iterations=2, dt=1.0 / 48.0,
+                 alpha=0.1, qp_solver="daqp"):
+        self.models = [m.requires_grad_(False) for m in models]
+        self._jac = [step_jacobians(m) for m in self.models]
         self.N = N = horizon
         self.c = constraints or SafetyConstraints()
         self.u_max = u_max
@@ -131,31 +165,22 @@ class PredictiveSafetyFilter:
         self.w0, self.w1, self.w_du = w0, w1, w_du
         self.sqp_iterations = sqp_iterations
         self.dt = dt
-        x = ca.SX.sym("x", NX)
-        u = ca.SX.sym("u", NU)
-        d = ca.SX.sym("d", 3)
-        self.F, self._lin, self._roll = [], [], []
-        for m in models:
-            F = m.casadi_step()
-            xn = F(x, u, d)
-            lin = ca.Function("lin", [x, u, d], [ca.jacobian(xn, x), ca.jacobian(xn, u)])
-            self.F.append(F)
-            self._lin.append(lin.map(N, "thread", threads))
-            self._roll.append(F.mapaccum("roll", N))
+        self.alpha = alpha              # gain of the env's command low-pass filter
         nz = NU * N
         self._D = np.eye(nz) - np.eye(nz, k=-NU)
         self._rows = [self._constraint_layout(mode) for mode in (0, 1)]
-        opts = {"printLevel": "none", "error_on_fail": False}
+        opts = {"error_on_fail": False}
         ng = len(self.GROUPS)
         self._cert_qp, self._safe_qp = [], []
         for mode in (0, 1):
             m_c = len(self._rows[mode]["idx"]) * N
-            self._cert_qp.append(ca.conic(f"cert{mode}", "qpoases",
+            m_h = len(self._rows[mode]["hard"])
+            self._cert_qp.append(ca.conic(f"cert{mode}", qp_solver,
                                           {"h": ca.Sparsity.dense(nz, nz),
                                            "a": ca.Sparsity.dense(m_c, nz)}, opts))
-            self._safe_qp.append(ca.conic(f"safe{mode}", "qpoases",
+            self._safe_qp.append(ca.conic(f"safe{mode}", qp_solver,
                                           {"h": ca.Sparsity.dense(nz + ng, nz + ng),
-                                           "a": ca.Sparsity.dense(2 * m_c, nz + ng)}, opts))
+                                           "a": ca.Sparsity.dense(2 * m_c + m_h, nz + ng)}, opts))
         track = np.full(nz, w1)
         track[:NU] = w0
         self._track = track
@@ -169,17 +194,22 @@ class PredictiveSafetyFilter:
 
     # ------------------------------------------------------------------ setup
     def _constraint_layout(self, mode):
-        """Constrained state entries of one step: index, bounds, group."""
+        """Constrained state entries of one step: index, soft bounds, hard
+        bounds, group; ``hard`` lists the rows of the stacked horizon outputs
+        that have a hard bound."""
         c, big = self.c, 1e3
-        idx, lo, hi, grp = [], [], [], []
+        idx, lo, hi, hard_lo, hard_hi, grp = [], [], [], [], [], []
 
-        def add(i, a, b, g):
+        def add(i, a, b, g, hard=np.inf):
             idx.append(i)
             lo.append(a)
             hi.append(b)
+            hard_lo.append(-hard)
+            hard_hi.append(hard)
             grp.append(self.GROUPS.index(g))
         for i in TILT_IDX:
-            add(i, -c.max_tilt, c.max_tilt, "tilt")
+            add(i, -c.max_tilt, c.max_tilt, "tilt",
+                np.inf if c.hard_max_tilt is None else c.hard_max_tilt)
         add(ALT_IDX, c.min_altitude, big, "altitude")
         for i in SPEED_IDX:
             add(i, -c.max_speed, c.max_speed, "speed")
@@ -189,6 +219,8 @@ class PredictiveSafetyFilter:
         E1 = np.zeros((len(idx), len(self.GROUPS)))
         E1[np.arange(len(idx)), grp] = 1.0
         return dict(idx=np.array(idx), lo=np.array(lo), hi=np.array(hi), grp=np.array(grp),
+                    hard_lo=np.array(hard_lo), hard_hi=np.array(hard_hi),
+                    hard=np.flatnonzero(np.isfinite(np.tile(hard_hi, self.N))),
                     E=np.tile(E1, (self.N, 1)))
 
     def reset(self):
@@ -205,23 +237,28 @@ class PredictiveSafetyFilter:
                 self.dist[:] = 0.0
             return
         _, x_prev, u_prev = self._last
-        pred = np.asarray(self.F[mode](x_prev, u_prev, self.dist)).ravel()
-        self.dist = np.clip(self.dist + self.dist_gain * (x[3:6] - pred[3:6]),
+        with torch.inference_mode():
+            pred = self.models[mode](torch.from_numpy(x_prev), torch.from_numpy(u_prev),
+                                     torch.from_numpy(self.dist)).numpy()
+        self.dist = np.clip(self.dist + self.dist_gain * (x[V] - pred[V]),
                             -self.max_dist, self.max_dist)
 
     def rollout(self, mode, x0, U):
         """Nonlinear prediction X (NX, N+1) for the command plan U (NU, N)."""
-        D = np.tile(self.dist[:, None], (1, U.shape[1]))
-        X = np.asarray(self._roll[mode](x0, U, D))
-        return np.hstack([x0[:, None], X])
+        with torch.inference_mode():
+            X = rollout(self.models[mode], torch.from_numpy(x0), torch.from_numpy(U.T.copy()),
+                        torch.from_numpy(self.dist))
+        return np.hstack([x0[:, None], X.numpy().T])
 
-    def _bounds(self, mode, x0):
-        """Per-step bounds (N * n_c,), relaxed where x0 already violates them."""
+    def _bounds(self, mode, x0, hard=False):
+        """Per-step soft (or hard) bounds (N * n_c,), relaxed where x0 already
+        violates them."""
         L = self._rows[mode]
+        lo, hi = (L["hard_lo"], L["hard_hi"]) if hard else (L["lo"], L["hi"])
         y0 = x0[L["idx"]]
         rho = self.c.contraction ** np.arange(1, self.N + 1)[:, None]
-        hi = L["hi"][None] + np.maximum(y0 - L["hi"], 0.0)[None] * rho
-        lo = L["lo"][None] - np.maximum(L["lo"] - y0, 0.0)[None] * rho
+        hi = hi[None] + np.maximum(y0 - hi, 0.0)[None] * rho
+        lo = lo[None] - np.maximum(lo - y0, 0.0)[None] * rho
         return lo.ravel(), hi.ravel()
 
     def _linearize(self, mode, X, U):
@@ -229,16 +266,15 @@ class PredictiveSafetyFilter:
         G = dy/dU along the trajectory (X, U)."""
         N = self.N
         L = self._rows[mode]
-        D = np.tile(self.dist[:, None], (1, N))
-        A, B = self._lin[mode](X[:, :N], U, D)
-        A = np.asarray(A).reshape(NX, N, NX)
-        B = np.asarray(B).reshape(NX, N, NU)
+        A, B = self._jac[mode](torch.from_numpy(X[:, :N].T.copy()), torch.from_numpy(U.T.copy()),
+                               torch.from_numpy(self.dist))
+        A, B = A.numpy(), B.numpy()                      # (N, NX, NX), (N, NX, NU)
         n_c = len(L["idx"])
         G = np.zeros((N * n_c, NU * N))
         S = np.zeros((NX, NU * N))
         for k in range(N):
-            S = A[:, k, :] @ S
-            S[:, NU * k:NU * (k + 1)] += B[:, k, :]
+            S = A[k] @ S
+            S[:, NU * k:NU * (k + 1)] += B[k]
             G[k * n_c:(k + 1) * n_c] = S[L["idx"]]
         y = X[L["idx"]][:, 1:].T.ravel()
         return y, G
@@ -255,12 +291,25 @@ class PredictiveSafetyFilter:
     def _within_tolerance(self, v):
         return all(v[g] <= self.TOL[name] for g, name in enumerate(self.GROUPS))
 
-    def rate_violation(self, u_rl, u_prev):
-        """Proposal jumps by more than ``max_step`` or turns by more than
-        ``max_turn`` with respect to the previously applied command."""
+    def rate_box(self, x0, u_prev):
+        """Bounds on the first command from ``max_ref_accel`` (around the
+        filtered command c = x0[C]) and ``max_step`` (around u_prev)."""
         c = self.c
-        if c.max_step is not None and np.linalg.norm(u_rl - u_prev) > c.max_step:
-            return True
+        lb, ub = np.full(NU, -self.u_max), np.full(NU, self.u_max)
+        if c.max_step is not None:
+            lb, ub = np.maximum(lb, u_prev - c.max_step), np.minimum(ub, u_prev + c.max_step)
+        if c.max_ref_accel is not None:
+            # |c_k+1 - c_k| = alpha |u - c_k| <= max_ref_accel dt; clipping (instead of
+            # intersecting) keeps the box non-empty, the reference limit wins
+            r = c.max_ref_accel * self.dt / self.alpha
+            lb = np.clip(lb, x0[C] - r, x0[C] + r)
+            ub = np.clip(ub, x0[C] - r, x0[C] + r)
+        return lb, ub
+
+    def turn_violation(self, u_rl, u_prev):
+        """Proposal turns by more than ``max_turn`` with respect to the
+        previously applied command."""
+        c = self.c
         n0, n1 = np.linalg.norm(u_prev), np.linalg.norm(u_rl)
         if c.max_turn is not None and min(n0, n1) > c.turn_min_speed:
             angle = np.arccos(np.clip(u_rl @ u_prev / (n0 * n1), -1.0, 1.0))
@@ -295,28 +344,29 @@ class PredictiveSafetyFilter:
         e_prev[:NU] = u_prev
 
         # bounds on the first command
-        lb0 = np.full(NU, -self.u_max)
-        ub0 = np.full(NU, self.u_max)
         escaping = self._escape(x0, contact)
-        rate_bad = self.rate_violation(u_rl, u_prev)
+        turn_bad = False
         if escaping:
             lb0 = np.array([-c.escape_lateral, -c.escape_lateral, c.escape_climb])
             ub0 = np.array([c.escape_lateral, c.escape_lateral, self.u_max])
-        elif rate_bad and c.max_step is not None:
-            lb0 = np.maximum(lb0, u_prev - c.max_step)
-            ub0 = np.minimum(ub0, u_prev + c.max_step)
+        else:
+            lb0, ub0 = self.rate_box(x0, u_prev)
+            turn_bad = self.turn_violation(u_rl, u_prev)
+        # the proposal within the command-change limits
+        u_try = u_rl if escaping else np.clip(u_rl, lb0, ub0)
+        clipped = bool(np.any(u_try != u_rl))
 
         # nominal plan: the proposal now, then the previous plan (shifted)
         if self._plan is None:
-            U_nom = np.tile(u_rl[:, None], (1, N))
+            U_nom = np.tile(u_try[:, None], (1, N))
         else:
-            U_nom = np.hstack([u_rl[:, None], self._plan[:, 2:], self._plan[:, -1:]])
+            U_nom = np.hstack([u_try[:, None], self._plan[:, 2:], self._plan[:, -1:]])
         X_nom = self.rollout(mode, x0, U_nom)
 
-        # 1) certification of u_rl
+        # 1) certification of the (clipped) proposal
         certified = False
         U, X = U_nom, X_nom
-        if not escaping and not rate_bad:
+        if not escaping and not turn_bad:
             if self._within_tolerance(self._violation(mode, X_nom, lo, hi)):
                 certified = True                 # the nominal continuation is already safe
             else:
@@ -327,13 +377,13 @@ class PredictiveSafetyFilter:
                     off = y - G @ u_flat
                     lbx = np.full(NU * N, -self.u_max)
                     ubx = np.full(NU * N, self.u_max)
-                    lbx[:NU] = ubx[:NU] = u_rl
+                    lbx[:NU] = ubx[:NU] = u_try
                     g = -np.r_[np.zeros(NU), np.full(NU * (N - 1), self.w1)] * u_ref \
                         - self.w_du * self._D.T @ e_prev
-                    # infeasible = u_rl cannot be certified (-> intervention)
+                    # infeasible = u_try cannot be certified (-> intervention)
                     qp = self._cert_qp[mode]
-                    sol = quiet_qp(qp, h=self._H_cert, g=g, a=G, lba=lo - off, uba=hi - off,
-                                   lbx=lbx, ubx=ubx, x0=u_flat)
+                    sol = qp(h=self._H_cert, g=g, a=G, lba=lo - off, uba=hi - off,
+                             lbx=lbx, ubx=ubx, x0=u_flat)
                     z = np.asarray(sol["x"]).ravel()
                     if not (qp.stats()["success"] and np.all(np.isfinite(z))):
                         break
@@ -344,14 +394,26 @@ class PredictiveSafetyFilter:
                         break
 
         slack = np.zeros(len(self.GROUPS))
+        hard_kept = True
         if certified:
-            u_apply = u_rl.copy()
+            u_apply = u_try.copy()
         else:
-            # 2) intervention: closest admissible command (soft constraints)
+            # 2) intervention: closest admissible command (soft constraints + hard tilt)
             ng = len(self.GROUPS)
+            H = L["hard"]
+            hard_lo, hard_hi = self._bounds(mode, x0, hard=True)
             lbu = np.full(NU * N, -self.u_max)
             ubu = np.full(NU * N, self.u_max)
-            lbu[:NU], ubu[:NU] = lb0, ub0
+            lb_i, ub_i = lb0.copy(), ub0.copy()
+            if not escaping:
+                if c.no_reversal:
+                    lb_i = np.where(u_rl > 0, np.maximum(lb_i, 0.0), lb_i)
+                    ub_i = np.where(u_rl < 0, np.minimum(ub_i, 0.0), ub_i)
+                if c.max_deviation is not None:
+                    lb_i = np.maximum(lb_i, u_rl - c.max_deviation)
+                    ub_i = np.minimum(ub_i, u_rl + c.max_deviation)
+                lb_i = np.minimum(lb_i, ub_i)       # keep the box non-empty
+            lbu[:NU], ubu[:NU] = lb_i, ub_i
             U_s = np.clip(U_nom, lbu.reshape(N, NU).T, ubu.reshape(N, NU).T)
             X_s = self.rollout(mode, x0, U_s)
             best = None
@@ -359,22 +421,30 @@ class PredictiveSafetyFilter:
                 y, G = self._linearize(mode, X_s, U_s)
                 u_flat = U_s.T.ravel()
                 off = y - G @ u_flat
-                A = np.block([[G, -L["E"]], [G, L["E"]]])
-                lba = np.r_[np.full(len(lo), -np.inf), lo - off]
-                uba = np.r_[hi - off, np.full(len(hi), np.inf)]
+                A = np.block([[G, -L["E"]], [G, L["E"]], [G[H], np.zeros((len(H), ng))]])
+                lba = np.r_[np.full(len(lo), -np.inf), lo - off, hard_lo[H] - off[H]]
+                uba = np.r_[hi - off, np.full(len(hi), np.inf), hard_hi[H] - off[H]]
                 g = np.r_[-self._track * u_ref - self.w_du * self._D.T @ e_prev, self._slack_lin]
                 qp = self._safe_qp[mode]
-                sol = qp(h=self._H_safe, g=g, a=A, lba=lba, uba=uba,
-                         lbx=np.r_[lbu, np.zeros(ng)], ubx=np.r_[ubu, np.full(ng, np.inf)],
-                         x0=np.r_[u_flat, np.zeros(ng)])
-                z = np.asarray(sol["x"]).ravel()
-                if not (qp.stats()["success"] and np.all(np.isfinite(z))):
+                z = None
+                for hard in (True, False) if hard_kept else (False,):
+                    if not hard:            # the linearized QP cannot meet the hard bound
+                        lba[2 * len(lo):], uba[2 * len(lo):] = -np.inf, np.inf
+                    sol = qp(h=self._H_safe, g=g, a=A, lba=lba, uba=uba,
+                             lbx=np.r_[lbu, np.zeros(ng)],
+                             ubx=np.r_[ubu, np.full(ng, np.inf)],
+                             x0=np.r_[u_flat, np.zeros(ng)])
+                    z = np.asarray(sol["x"]).ravel()
+                    if qp.stats()["success"] and np.all(np.isfinite(z)):
+                        break
+                    hard_kept, z = False, None
+                if z is None:
                     break
                 U_s = z[:NU * N].reshape(N, NU).T
                 X_s = self.rollout(mode, x0, U_s)
                 best = (U_s, X_s, z[NU * N:])
             if best is None:                     # QP failure: hold the previous command
-                u_hold = np.clip(u_prev, lb0, ub0)
+                u_hold = np.clip(u_prev, lb_i, ub_i)
                 U = np.tile(u_hold[:, None], (1, N))
                 X = self.rollout(mode, x0, U)
             else:
@@ -384,15 +454,15 @@ class PredictiveSafetyFilter:
         self._plan = U
         self._last = (mode, x0.copy(), u_apply.copy())
         if certified:
-            reason = "none"
+            reason = "rate" if clipped else "none"
         elif escaping:
             reason = "contact"
-        elif rate_bad:
+        elif turn_bad:
             reason = "rate"
         else:
             reason = "constraint"
-        self.last = {"intervened": not certified, "reason": reason, "u_rl": u_rl,
-                     "u_applied": u_apply, "slack": slack, "X_pred": X, "U_plan": U,
-                     "violation": self._violation(mode, X, lo, hi),
+        self.last = {"intervened": reason != "none", "reason": reason, "u_rl": u_rl,
+                     "u_applied": u_apply, "slack": slack, "hard_tilt_kept": hard_kept,
+                     "X_pred": X, "U_plan": U, "violation": self._violation(mode, X, lo, hi),
                      "solve_time": time.perf_counter() - t0}
         return u_apply, self.last

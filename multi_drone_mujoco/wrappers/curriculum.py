@@ -43,8 +43,8 @@ class CurriculumConfig:
     num_levels: int = 50
     start_level: int = 0
     advance_count: int = 1
-    """
-    """Adaptive transport:
+    
+    Adaptive transport:"""
 
     metric: str = "reward"
     threshold_advance: float = 1000
@@ -54,14 +54,14 @@ class CurriculumConfig:
     start_level: int = 0
     advance_count: int = 1
     
-    Adaptive velocity:"""
+    """Adaptive velocity:
     metric: str = "reward"
     threshold_advance: float = 110
     threshold_retreat: float = -1000
     window_size: int = 20
     num_levels: int = 3
     start_level: int = 0
-    advance_count: int = 1
+    advance_count: int = 1"""
     
 class CurriculumWrapper(gym.Wrapper):
     """Gymnasium wrapper that implements automatic curriculum learning.
@@ -105,9 +105,11 @@ class CurriculumWrapper(gym.Wrapper):
         self._episode_steps = 0
         self._episode_success = False
         self._advance_streak = 0
-        self._level_changed = False
+        # True: the first reset applies start_level (difficulty_fn acts only on
+        # a change, otherwise the first level would run with the env defaults)
+        self._level_changed = True
 
-       
+
 
     @property
     def level(self) -> int:

@@ -131,16 +131,11 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
             ]),
         )
 
-    def _computeReward(self, action):
-        """Transport reward minus a penalty on the action.
-
-        Note: ``action`` here is what ``step`` passed to the transport task,
-        i.e. [4 motor commands, 2 tendons], so action[0:3] are motor
-        commands, not the velocity command.
-        """
-        total = super()._computeReward(action)
-        velocity_penalty = 0.25 * np.sum(np.square(action[0:3]))
-        return total - velocity_penalty
+    # The reward is the transport task's reward (inherited, no extra term), so
+    # the director and the transport policy are trained and compared on the
+    # same reward. (results/final/rl_adaptive_director_curriculum was trained
+    # with an extra -0.25 * sum(action[0:3]**2), action[0:3] being the first
+    # three motor commands.)
 
 
     def _get_low_level_obs(self, target_vel, target_orientation):

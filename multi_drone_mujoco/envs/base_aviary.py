@@ -31,6 +31,20 @@ from multi_drone_mujoco.utils.enums import DroneModel, Physics, ActionType, Obse
 ASSETS_PATH = Path(__file__).resolve().parent.parent / "assets"
 CF2_MESH_DIR = Path(os.environ.get("MJ_DRONES_CF2_ASSETS",
                                    str(ASSETS_PATH / "cf2")))
+# Bumblebee meshes (.stl, mm units) are vendored under
+# multi_drone_mujoco/assets/bumblebee, copied from AIMotionLab-SZTAKI/
+# AIMotionLab-Virtual (aiml_virtual/resources/xml_models/meshes/bumblebee).
+BB_MESH_DIR = ASSETS_PATH / "bumblebee"
+
+# Bumblebee visual geometry relative to its centre of mass (the body origin
+# here). The body mesh is used unrotated; the AIMotionLab CoM offset
+# (mesh at 0.0132, CoM at 0.0085 along the long-arm axis, which is the mesh's
+# y axis) is applied along y, so the motors end up at x = +-0.087,
+# y = +-0.083, i.e. symmetric about the CoM. Props sit on top of the motors.
+BB_MESH_SHIFT = (0.0, 0.0132 - 0.0085, 0.0)
+BB_PROP_X = 0.087
+BB_PROP_Y = 0.0828
+BB_PROP_Z = 0.036
 
 ################################################################################
 # Crazyflie 2.x physical parameters (from Forster 2015 system identification)
@@ -143,14 +157,22 @@ def _generate_aviary_xml(
     meshdir = str(CF2_MESH_DIR)
     params = DRONE_PARAMS[drone_model]
 
-    visual_meshes = "\n".join(
-        f'    <mesh file="{meshdir}/cf2_{i}.obj" name="cf2_vis_{i}"/>'
-        for i in range(7)
-    )
-    collision_meshes = "\n".join(
-        f'    <mesh file="{meshdir}/cf2_collision_{i}.obj" name="cf2_col_{i}"/>'
-        for i in range(32)
-    )
+    if drone_model == DroneModel.BB_HOOK:
+        bbdir = str(BB_MESH_DIR)
+        visual_meshes = f"""\
+    <mesh file="{bbdir}/quad_model_no_prop_simplified.stl" name="bb_body" smoothnormal="true" scale="0.001 0.001 0.001"/>
+    <mesh file="{bbdir}/cw_propeller_simplified.stl" name="bb_cw_prop" smoothnormal="true" scale="0.001 0.001 0.001"/>
+    <mesh file="{bbdir}/ccw_propeller_simplified.stl" name="bb_ccw_prop" smoothnormal="true" scale="0.001 0.001 0.001"/>"""
+        collision_meshes = ""
+    else:
+        visual_meshes = "\n".join(
+            f'    <mesh file="{meshdir}/cf2_{i}.obj" name="cf2_vis_{i}"/>'
+            for i in range(7)
+        )
+        collision_meshes = "\n".join(
+            f'    <mesh file="{meshdir}/cf2_collision_{i}.obj" name="cf2_col_{i}"/>'
+            for i in range(32)
+        )
 
     mass = params["mass"]
     ixx, iyy, izz = params["ixx"], params["iyy"], params["izz"]
@@ -404,11 +426,24 @@ def _generate_aviary_xml(
         for pi, (px, py, pz) in enumerate(prop_offsets):
             prop_sites += f'      <site name="{prefix}_prop{pi}" pos="{px} {py} {pz}" group="5"/>\n'
 
-        body_xml = f"""
-    <body name="{prefix}" pos="{x} {y} {z}" quat="{qw} {qx} {qy} {qz}">
-      <freejoint name="{prefix}_joint"/>
-      <inertial pos="0 0 0" mass="{mass}" diaginertia="{ixx} {iyy} {izz}"/>
-      <geom name="{prefix}_collision" type="cylinder" size="{params['collision_r']} {params['collision_h'] / 2}" rgba="0 0 0 0" contype="1" conaffinity="1"/>
+        if drone_model == DroneModel.BB_HOOK:
+            # Propellers in prop_offsets order; spin directions follow the yaw
+            # torque sign (-t0 + t1 - t2 + t3): props 0 / 2 ccw, 1 / 3 cw.
+            # Visual only, the dynamics still use prop_offsets.
+            sx, sy, sz = BB_MESH_SHIFT
+            visual_geoms = (
+                f'      <geom mesh="bb_body" pos="{sx} {sy} {sz}" material="bb_body" class="visual"/>\n'
+            )
+            for (px, py), spin in zip(
+                [(BB_PROP_X, BB_PROP_Y), (-BB_PROP_X, BB_PROP_Y),
+                 (-BB_PROP_X, -BB_PROP_Y), (BB_PROP_X, -BB_PROP_Y)],
+                ["ccw", "cw", "ccw", "cw"],
+            ):
+                visual_geoms += (
+                    f'      <geom mesh="bb_{spin}_prop" pos="{px} {py} {BB_PROP_Z}" material="bb_prop" class="visual"/>\n'
+                )
+        else:
+            visual_geoms = """\
       <geom mesh="cf2_vis_0" material="propeller_plastic" class="visual"/>
       <geom mesh="cf2_vis_1" material="medium_gloss_plastic" class="visual"/>
       <geom mesh="cf2_vis_2" material="polished_gold" class="visual"/>
@@ -416,7 +451,14 @@ def _generate_aviary_xml(
       <geom mesh="cf2_vis_4" material="burnished_chrome" class="visual"/>
       <geom mesh="cf2_vis_5" material="body_frame_plastic" class="visual"/>
       <geom mesh="cf2_vis_6" material="white" class="visual"/>
-      <site name="{prefix}_center" pos="0 0 0" group="5"/>
+"""
+
+        body_xml = f"""
+    <body name="{prefix}" pos="{x} {y} {z}" quat="{qw} {qx} {qy} {qz}">
+      <freejoint name="{prefix}_joint"/>
+      <inertial pos="0 0 0" mass="{mass}" diaginertia="{ixx} {iyy} {izz}"/>
+      <geom name="{prefix}_collision" type="cylinder" size="{params['collision_r']} {params['collision_h'] / 2}" rgba="0 0 0 0" contype="1" conaffinity="1"/>
+{visual_geoms}      <site name="{prefix}_center" pos="0 0 0" group="5"/>
 """
 
         if drone_model == DroneModel.BB_HOOK:
@@ -559,6 +601,8 @@ def _generate_aviary_xml(
     <material name="white" rgba="1 1 1 1"/>
     <material name="body_frame_plastic" rgba="0.102 0.102 0.102 1"/>
     <material name="burnished_chrome" rgba="0.898 0.898 0.898 1"/>
+    <material name="bb_body" rgba="0.85 0.85 0.85 1" specular="0.3" shininess="0.3"/>
+    <material name="bb_prop" rgba="0.1 0.02 0.5 1"/>
     <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
     <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3" markrgb="0.8 0.8 0.8" width="300" height="300"/>
     <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>

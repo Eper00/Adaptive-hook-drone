@@ -3,7 +3,8 @@
 A gymnasium-compatible multi-drone simulation environment using MuJoCo physics,
 inspired by gym-pybullet-drones but with superior performance, accuracy, and features.
 
-Uses the Bitcraze Crazyflie 2.x model from mujoco_menagerie.
+Drone models: Bitcraze Crazyflie 2.x (mujoco_menagerie meshes) and the
+AIMotionLab Bumblebee with the adaptive hook (AIMotionLab-Virtual meshes).
 """
 
 __version__ = "1.0.0"
