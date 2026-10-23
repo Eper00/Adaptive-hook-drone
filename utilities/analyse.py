@@ -90,8 +90,8 @@ OUTCOME_COLORS = {"success": "tab:green", "payload": "tab:orange",
                   "stability": "tab:red", "unfinished": "tab:gray"}
 STAGES = ["take-off", "pre-grasp", "grasp", "goal"]   # env waypoint index
 GOAL_TOLERANCE = 0.15      # [m] drone-goal distance counted as "goal reached"
-# [s] the payload has to stay on the hook this long after the goal is reached
-# for a success (what happens later in the episode does not count)
+# [s] the drone has to stay within GOAL_TOLERANCE of the goal with the payload
+# on the hook this long without a break for a success; the episode ends there
 GOAL_HOLD_TIME = 5.0
 # why the safety filter overrode the controller (see the safety filter env)
 REASONS = ["none", "constraint", "rate", "stall", "contact"]
@@ -476,40 +476,52 @@ class MPCDirector:
 def classify(ep, hold_time=GOAL_HOLD_TIME):
     """Outcome of an episode and when / at which stage it was decided.
 
-    success    : goal reached with the payload, and the payload still on the
-                 hook ``hold_time`` later (or at the end of a shorter
-                 episode) without a crash; what happens after the hold does
-                 not count
+    success    : the drone stayed within GOAL_TOLERANCE of the goal with the
+                 payload on the hook for ``hold_time`` without a break (or
+                 until the end of the episode, if time ran out during the
+                 hold) without a crash; the event step is the start of that
+                 hold. run_director_episode stops the episode there.
     stability  : the drone flipped (|roll| or |pitch| > pi/2) or hit the floor
     payload    : the payload was lifted but lost again
     unfinished : no crash, payload not lost, but the goal was not reached
-                 with the payload in time (e.g. never grasped, too slow)
+                 and held with the payload in time (e.g. never grasped, too
+                 slow, left the goal region)
     """
     att = ep["attached"].astype(bool)
-    goal_dist = np.linalg.norm(ep["p"] - ep["goal"], axis=1)
-    reached = np.nonzero(att & (goal_dist < GOAL_TOLERANCE))[0]
+    in_goal = goal_hold_mask(ep)
     k_end = len(ep["t"]) - 1
-    if reached.size:
-        k0 = reached[0]
-        dt = ep["t"][1] - ep["t"][0] if len(ep["t"]) > 1 else 1.0
-        k1 = min(k0 + int(round(hold_time / dt)), k_end)
-        if att[k0:k1 + 1].all() and not (ep["crashed"] and k1 == k_end):
-            return "success", k0
+    dt = ep["t"][1] - ep["t"][0] if len(ep["t"]) > 1 else 1.0
+    n_hold = int(round(hold_time / dt))
+    # runs of consecutive steps within the goal region with the payload
+    edges = np.diff(np.concatenate(([0], in_goal.astype(int), [0])))
+    for s, e in zip(np.nonzero(edges == 1)[0], np.nonzero(edges == -1)[0] - 1):
+        if e - s >= n_hold and not (ep["crashed"] and s + n_hold == k_end):
+            return "success", s
+        if e == k_end and not ep["crashed"]:        # time ran out during the hold
+            return "success", s
     if ep["crashed"]:
         return "stability", k_end
     lifted = np.nonzero(att)[0]
     if lifted.size and not att[-1]:
         lost = lifted[-1] + 1
         return "payload", min(lost, k_end)
-    if reached.size and att[-1]:
-        return "success", reached[0]
     return "unfinished", k_end
+
+
+def goal_hold_mask(ep):
+    """Steps where the drone is within GOAL_TOLERANCE of the goal with the
+    payload on the hook."""
+    goal_dist = np.linalg.norm(ep["p"] - ep["goal"], axis=1)
+    return ep["attached"].astype(bool) & (goal_dist < GOAL_TOLERANCE)
 
 
 def run_director_episode(controller, env, seed, max_time, render_on, overlay, scenario=None):
     """One episode of a director controller. ``scenario`` (see
     scenario_from_env) replays a given payload / goal / heading instead of
-    the one drawn with ``seed``."""
+    the one drawn with ``seed``. The episode ends at ``max_time``, at a
+    crash / env termination, or once the drone has stayed within
+    GOAL_TOLERANCE of the goal with the payload for GOAL_HOLD_TIME (success,
+    see classify)."""
     env.reset(seed=seed)
     if scenario is not None:
         apply_scenario(env, scenario)
@@ -519,6 +531,9 @@ def run_director_episode(controller, env, seed, max_time, render_on, overlay, sc
     drone_start = env.pos[0].copy()
     rest_z = payload_start[2]
     dt = env.CTRL_TIMESTEP
+    goal = np.asarray(env.GOAL_POSITION, float)
+    n_hold = int(round(GOAL_HOLD_TIME / dt))
+    held = 0                    # consecutive steps within the goal region with the payload
     log = {k: [] for k in ("t", "p", "v", "rpy", "cmd", "cmd_filtered", "attached",
                            "payload_pos", "waypoint", "cmd_rl", "intervened", "swing",
                            "reason", "qpos")}
@@ -548,10 +563,12 @@ def run_director_episode(controller, env, seed, max_time, render_on, overlay, sc
             render(env, lambda: overlay.draw_director(cmd, v, proposal=extra["cmd_rl"],
                                                       intervened=extra["intervened"]))
         crashed = (env.pos[0, 2] < 0.0) or bool(np.any(np.abs(env.rpy[0, 0:2]) > np.pi / 2))
-        if crashed or terminated or truncated:
+        in_goal = attached and np.linalg.norm(env.pos[0] - goal) < GOAL_TOLERANCE
+        held = held + 1 if in_goal else 0
+        if crashed or terminated or truncated or held > n_hold:
             break
     ep = {k: np.asarray(v) for k, v in log.items()}
-    ep.update(seed=seed, crashed=crashed, goal=np.asarray(env.GOAL_POSITION, float),
+    ep.update(seed=seed, crashed=crashed, goal=goal,
               payload_start=payload_start, start=drone_start,
               mass=env.MASS + 0.01, radius=env.RADIUS)
     outcome, k = classify(ep)
@@ -1328,6 +1345,8 @@ def render_scenario_video(results, scenario, out, width=640, every=2):
     env.reset(seed=scenario["seed"])
     apply_scenario(env, scenario)
     model, data = env.model, env.data
+    model.vis.global_.offwidth = max(model.vis.global_.offwidth, width)
+    model.vis.global_.offheight = max(model.vis.global_.offheight, height)
     renderer = mujoco.Renderer(model, height=height, width=width, max_geom=20000)
     cam = mujoco.MjvCamera()
     pts = np.array([scenario["start_position"], scenario["payload_center"], scenario["goal_position"]])

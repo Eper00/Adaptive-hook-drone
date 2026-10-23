@@ -10,7 +10,7 @@ level of every seed, and the level changes are marked by thin vertical lines
 in the group's colour on the other panels.
 
 Presets (--preset):
-  cl        flat agent without vs with curriculum      (thesis Fig. 3.1)
+  cl        flat agent without vs with curriculum      (thesis Fig. 3.1, with --overlay)
   director  director vs flat agent, both with curriculum (Section 3.3.8)
 
 Besides <name>.png (300 dpi) and <name>.pdf, <name>_summary.csv lists per
@@ -39,7 +39,7 @@ Usage
 -----
     python -m utilities.plot_seeds --preset cl
     python -m utilities.plot_seeds --preset director
-    python -m utilities.plot_seeds --preset cl --root results/seeds_ent0.005 --out results/analysis/seeds_ent0.005
+    python -m utilities.plot_seeds --preset cl --overlay --out results/thesis_figures   # thesis Fig. 3.1
     python -m utilities.plot_seeds --group "flat=results/seeds/transport_s*_curriculum" \\
         --group "director=results/seeds/director_s*_curriculum" --name my_plot
 """
@@ -233,6 +233,65 @@ def draw_group(label, dirs, runs, args, grid, end, title, name):
     plt.close(fig)
 
 
+def draw_overlay(loaded, args, grid, end, name):
+    """All groups in one figure (thesis Fig. 3.1): training return, episode
+    length and curriculum level; per group the mean of the seeds (line) and
+    their min-max range (shaded), level changes as dotted lines in the group's
+    colour. ``--figsize`` sets the aspect ratio (wide for the thesis)."""
+    f, scale = args.font, 1e6
+    plt.rcParams.update({
+        "font.size": f, "axes.labelsize": f, "xtick.labelsize": f - 2, "ytick.labelsize": f - 2,
+        "legend.fontsize": f - 4, "lines.linewidth": 2.5,
+    })
+    has_cl = any(d["level"] is not None for _, _, runs in loaded for d in runs)
+    n_lv = len(TRANSPORT_LEVELS)
+    n_panels = 3 if has_cl else 2
+    fig, axes = plt.subplots(n_panels, 1, figsize=args.figsize, sharex=True,
+                             gridspec_kw=dict(height_ratios=[3, 2, 0.5 * n_lv][:n_panels]))
+    ax_r, ax_l = axes[0], axes[1]
+    for g, (label, dirs, runs) in enumerate(loaded):
+        color = COLORS[g % len(COLORS)]
+        for ax, tag in ((ax_r, "rollout/ep_rew_mean"), (ax_l, "rollout/ep_len_mean")):
+            y = on_grid(runs, tag, grid)
+            ok = ~np.all(np.isnan(y), axis=0)
+            ax.fill_between(grid[ok] / scale, np.nanmin(y[:, ok], 0), np.nanmax(y[:, ok], 0),
+                            color=color, alpha=0.2, lw=0)
+            ax.plot(grid[ok] / scale, np.nanmean(y[:, ok], 0), color=color,
+                    label=f"{label} (mean of {len(runs)} seeds, min–max shaded)" if ax is ax_r else None)
+        for j, d in enumerate(runs):
+            for s_, _ in level_changes(d["level"]):
+                if s_ <= end:
+                    for ax in axes:
+                        ax.axvline(s_ / scale, color=color, ls=":", lw=1.8, alpha=0.7)
+            if has_cl and d["level"] is not None:
+                s_lv, lv = d["level"]
+                keep = s_lv <= end
+                axes[2].step(s_lv[keep] / scale, lv[keep] + 0.04 * (j - (len(runs) - 1) / 2),
+                             where="post", color=color, lw=2.5)
+    if has_cl:
+        ax_r.plot([], [], color="gray", ls=":", lw=1.8, label="curriculum level change (group colour)")
+        ax_c = axes[2]
+        ax_c.set_yticks(range(n_lv))
+        ax_c.set_yticklabels([f"L{i}" for i in range(n_lv)])
+        ax_c.set_ylim(-0.4, n_lv - 0.6)
+        ax_c.set_ylabel("Curriculum\nlevel")
+    ax_r.set_ylabel("Episode return")
+    ax_l.set_ylabel("Episode length\n[steps]")
+    axes[-1].set_xlabel("Environment steps [×10⁶]")
+    for ax in axes:
+        ax.grid(alpha=0.3)
+        ax.set_xlim(0, end / scale)
+    fig.align_ylabels(axes)
+    fig.tight_layout()
+    handles, labels = ax_r.get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=2, frameon=False)
+    for ext, kw in (("png", dict(dpi=300)), ("pdf", {})):
+        path = os.path.join(args.out, f"{name}.{ext}")
+        fig.savefig(path, bbox_inches="tight", **kw)
+        print("saved", path)
+    plt.close(fig)
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--preset", choices=["cl", "director"], default="cl")
@@ -249,6 +308,9 @@ def main():
     p.add_argument("--font", type=float, default=32)
     p.add_argument("--smooth", type=float, default=0.6, help="EMA weight of the evaluation mean")
     p.add_argument("--threshold", type=float, default=1000, help="curriculum advance threshold to draw")
+    p.add_argument("--overlay", action="store_true",
+                   help="all groups in one figure (thesis Fig. 3.1) instead of one figure per group")
+    p.add_argument("--figsize", type=float, nargs=2, default=[24, 13], help="figure size of --overlay [in]")
     args = p.parse_args()
     pre = presets(args.root)[args.preset]
     groups = [tuple(g.split("=", 1)) for g in args.group] if args.group else pre["groups"]
@@ -268,7 +330,9 @@ def main():
 
     rows = summary_rows(loaded, args)
     os.makedirs(args.out, exist_ok=True)
-    for label, dirs, runs in loaded:
+    if args.overlay:
+        draw_overlay(loaded, args, grid, end, name)
+    for label, dirs, runs in ([] if args.overlay else loaded):
         slug = re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
         title = (f"{args.title}: {label}" if args.title
                  else f"Training progress: {label} ({len(runs)} seeds)")

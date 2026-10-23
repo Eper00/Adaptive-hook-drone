@@ -1,5 +1,6 @@
 """Render still pictures of the hook drone, with and without the payload, of
-the payload alone and of a whole scene (saved to pictures/).
+the payload alone and of a whole scene (saved to pictures/ as png, and the
+same image converted to pdf).
 
     python utilities/render_pictures.py
 """
@@ -71,6 +72,24 @@ def render(env, lookat, distance, azimuth, elevation, path, hide_tendons=False,
     Image.fromarray(renderer.render()).save(path)
     renderer.close()
     print(f"saved {path}")
+    png_to_pdf(path)
+
+
+def png_to_pdf(path, dpi=300):
+    """The png as a pdf: one page of exactly the image size, the image
+    embedded losslessly at its own resolution (no margin, no white)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    img = np.asarray(Image.open(path))
+    fig = plt.figure(figsize=(img.shape[1] / dpi, img.shape[0] / dpi))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.imshow(img, interpolation="none")
+    ax.set_axis_off()
+    pdf = os.path.splitext(path)[0] + ".pdf"
+    fig.savefig(pdf, dpi=dpi, transparent=True)
+    plt.close(fig)
+    print(f"saved {pdf}")
 
 
 def main():
@@ -82,7 +101,7 @@ def main():
     payload_ids = [env.model.geom(n).id for n in PAYLOAD_GEOMS]
     set_visible(env, payload_ids, False, backup)
     env._place_drone(np.array([0.0, 0.0, 0.8]))
-    render(env, [0.0, 0.0, 0.62], 0.65, 135, -10,
+    render(env, [0.0, 0.0, 0.64], 0.9, 135, -15,
            os.path.join(OUT_DIR, "drone_hook_no_payload.png"))
 
     # 2) Payload alone (drone hidden), resting on the floor
@@ -116,7 +135,7 @@ def main():
     d = env.pos[0]
     p = env.data.qpos[env.target_qpos_adr:env.target_qpos_adr + 3]
     # look along the cylinder axis: the hook curls in the drone's y-z plane
-    render(env, (d + p) / 2 + np.array([0, 0, -0.05]), 1.1, 160, -8,
+    render(env, (d + p) / 2 + np.array([0, 0, -0.02]), 1.25, 160, -10,
            os.path.join(OUT_DIR, "drone_hook_with_payload.png"))
     env.close()
 

@@ -17,7 +17,7 @@ The payload mass is set to a grid of values (--masses), each flown --reps
 times. No MPC, RL director or offset estimate is involved: the model is
 rolled out open loop from the measured state with the applied commands.
 
-Figures (--out, default results/analysis_identification/resnet_test):
+Figures (--out, default results/analysis/identification):
   resnet_timeseries_no_payload.png/.pdf, resnet_timeseries_payload.png/.pdf
       a 10 s stretch of one flight: the simulated position, velocity,
       orientation (and payload swing) and the ResNet's prediction of the
@@ -329,7 +329,7 @@ def main():
     p.add_argument("--reuse", action="store_true", help="reuse the cached test flights")
     p.add_argument("--resnet", default=None, help="ResNet model file")
     p.add_argument("--stride", type=int, default=2, help="window stride [steps]")
-    p.add_argument("--out", default="results/analysis_identification/resnet_test")
+    p.add_argument("--out", default="results/analysis/identification")
     p.add_argument("--font", type=float, default=32)
     args = p.parse_args()
 

@@ -17,7 +17,7 @@ payload masses: utilities/test_resnet.py.)
 Every state is scored at every look-ahead (RMSE, MAE, bias, 95th percentile,
 max, NRMSE / FIT on the state increment, skill vs a constant-rate baseline).
 
-Outputs (``--out``, default results/analysis_identification):
+Outputs (``--out``, default results/analysis/identification/validation):
   metrics_open_loop.csv     all numbers
   tables.md                 the main tables
   summary.json              numbers + test flight list
@@ -476,7 +476,7 @@ def main():
     parser.add_argument("--resnet", default=None, help="ResNet model file")
     parser.add_argument("--workers", type=int, default=16)
     parser.add_argument("--reuse", action="store_true", help="reuse the cached flights")
-    parser.add_argument("--out", default="results/analysis_identification")
+    parser.add_argument("--out", default="results/analysis/identification/validation")
     args = parser.parse_args()
 
     import matplotlib

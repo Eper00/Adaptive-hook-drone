@@ -137,16 +137,18 @@ def run_all(methods, seeds, max_time, workers, model_path, chunk, chunk_dir):
     """Fly all (method, seed) pairs. Every finished chunk is saved in
     ``chunk_dir`` and reused on a restart (``--fresh`` deletes them)."""
     from multi_drone_mujoco.envs.adaptive_hook_director_safety_filter import FILTER_HORIZON
+    from utilities.analyse import GOAL_HOLD_TIME
     jobs = [(k, seeds[i:i + chunk]) for k in methods for i in range(0, len(seeds), chunk)]
     # slow methods first, so the pool stays busy
     jobs.sort(key=lambda j: j[0] not in ("director_safety", "director_mpc"))
     os.makedirs(chunk_dir, exist_ok=True)
 
     def chunk_file(kind, s):
-        # the MPC / filter horizon is part of the name, so runs with another
-        # horizon are not reused
+        # the MPC / filter horizon and the goal hold (episodes stop after it)
+        # are part of the name, so runs with other settings are not reused
         tag = f"{kind}_N{FILTER_HORIZON}" if kind != "director" else kind
-        return os.path.join(chunk_dir, f"{tag}_{s[0]}_{s[-1]}_{max_time:g}s.pkl")
+        return os.path.join(chunk_dir, f"{tag}_{s[0]}_{s[-1]}_{max_time:g}s"
+                                        f"_hold{GOAL_HOLD_TIME:g}s.pkl")
 
     results = {k: [] for k in methods}
     todo = []
@@ -233,8 +235,9 @@ def summarize(results):
             "name": NAMES[k], "episodes": n, **counts,
             "success_rate": counts["success"] / max(n, 1), "success_ci95": [lo, hi],
             "time_to_goal_median": float(np.median(tg)) if tg else None,
-            # successes (goal + GOAL_HOLD_TIME s hold) that lost the payload or
-            # crashed later in the episode (only the RL episodes run on)
+            # successes (GOAL_HOLD_TIME s hold in the goal region) that lost the
+            # payload or crashed later; the episodes stop after the hold, so
+            # this is 0 unless older, full-length episodes are replotted
             "success_hold_s": GOAL_HOLD_TIME,
             "failed_after_hold": sum(e["outcome"] == "success" and
                                      (e["crashed"] or not e["attached"][-1]) for e in eps),

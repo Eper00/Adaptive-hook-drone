@@ -17,7 +17,7 @@ applied commands.
 Usage
 -----
     python -m utilities.plot_identification
-    python -m utilities.plot_identification --cache results/analysis_identification/validation_flights.pkl
+    python -m utilities.plot_identification --cache results/analysis/identification/validation/validation_flights.pkl
 """
 
 import argparse
@@ -185,10 +185,10 @@ def write_csv(rows, path):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--cache", default="results/analysis_identification/validation_flights.pkl",
+    p.add_argument("--cache", default="results/analysis/identification/validation/validation_flights.pkl",
                    help="test flights of utilities/validate_resnet.py")
     p.add_argument("--resnet", default=None, help="ResNet model file")
-    p.add_argument("--out", default="results/analysis_identification/thesis")
+    p.add_argument("--out", default="results/analysis/identification/validation")
     p.add_argument("--stride", type=int, default=4, help="window stride [steps]")
     p.add_argument("--font", type=float, default=22)
     args = p.parse_args()

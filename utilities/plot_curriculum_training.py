@@ -44,7 +44,7 @@ PRESETS = {
                                             "L2: full payload range"]),
     "transport": dict(threshold=1000, levels=TRANSPORT_LEVELS),
     # results/final/rl_adaptive_director_curriculum: best seed of the seed study
-    # (results/seeds_ent0.01), trained with the transport preset
+    # (results/seeds), trained with the transport preset
     "director": dict(threshold=1000, levels=TRANSPORT_LEVELS),
 }
 
@@ -110,6 +110,9 @@ def main():
                    help="level descriptions (default: preset of the run's env)")
     p.add_argument("--smooth", type=float, default=0.6, help="EMA weight of the evaluation mean")
     p.add_argument("--font", type=float, default=32)
+    p.add_argument("--figsize", type=float, nargs=2, default=None,
+                   help="figure size [in] (default: 16 x tall; wide for the thesis, e.g. 24 13)")
+    p.add_argument("--title", default="Training progress with curriculum", help='"" for no title')
     args = p.parse_args()
     if args.threshold is None or args.levels is None:
         pre = preset(args.run)
@@ -133,7 +136,7 @@ def main():
     })
     # the level panel grows with the number of levels (room for the descriptions)
     n_levels = len(levels_txt)
-    fig, axes = plt.subplots(3, 1, figsize=(16, 15 + 0.9 * n_levels), sharex=True,
+    fig, axes = plt.subplots(3, 1, figsize=args.figsize or (16, 15 + 0.9 * n_levels), sharex=True,
                              gridspec_kw=dict(height_ratios=[3, 2, 0.55 * n_levels]))
     ax_r, ax_l, ax_c = axes
     scale = 1e6
@@ -186,7 +189,8 @@ def main():
         ax_r.text(x, 1.01, f" L{l} " if ha != "center" else f"L{l}", transform=ax_r.get_xaxis_transform(),
                   ha=ha, va="bottom", color="red", fontsize=args.font - 3)
 
-    ax_r.set_title("Training progress with curriculum", pad=1.8 * args.font)
+    if args.title:
+        ax_r.set_title(args.title, pad=1.8 * args.font)
     fig.align_ylabels(axes)
     fig.tight_layout()
     # one legend for the whole figure, below it, so that it covers no data

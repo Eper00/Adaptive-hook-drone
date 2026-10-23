@@ -8,15 +8,15 @@
 #
 # Usage: bash utilities/train_seeds.sh [timesteps] [all|cl|nocl] [ent_coef] [out]
 #   cl:   only the curriculum runs (transport + director), nocl: only transport without CL
-#   defaults: 10000000 all 0.001 results/seeds
-# e.g.  bash utilities/train_seeds.sh 10000000 all 0.005 results/seeds_ent0.005
+#   defaults: 10000000 all 0.01 results/seeds (the setup of the thesis)
+# e.g.  bash utilities/train_seeds.sh 10000000 all 0.005 results/seeds_ent0.005   (other entropy coefficient)
 set -e
 cd "$(dirname "$0")/.."
 source venv/bin/activate
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 STEPS=${1:-10000000}
 WHICH=${2:-all}
-ENT=${3:-0.001}
+ENT=${3:-0.01}
 OUT=${4:-results/seeds}
 mkdir -p $OUT/logs
 for seed in 1 2 3; do
