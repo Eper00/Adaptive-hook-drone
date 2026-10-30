@@ -13,6 +13,8 @@ Observation: the transport task's observation (see AdaptiveTransportAviary).
 """
 
 
+from pathlib import Path
+
 import numpy as np
 from gymnasium import spaces
 import mujoco
@@ -40,7 +42,7 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
         record = False,
         waypoints = None,
         waypoint_radius = 0.1,
-        controller_path = "/home/tomi/Adaptive-hook-drone/results/final/rl_adaptive_velocity_curriculum/final_model.zip",
+        controller_path = None,
         initial_xyzs = None,
         render_mode = None,
     ):
@@ -53,7 +55,11 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
         if initial_xyzs is None:
             # 0.5 m: the 0.433 m hook would start inside the floor at 0.4 m
             initial_xyzs = np.array([[0.0, 0.0, 0.5]])
-        # low-level velocity controller (PPO policy trained on AdaptiveVelocityAviary)
+        # low-level velocity controller (PPO policy trained on AdaptiveVelocityAviary);
+        # default: the final policy of the repository, independent of the working directory
+        if controller_path is None:
+            controller_path = (Path(__file__).resolve().parents[2] / "results" / "final"
+                               / "rl_adaptive_velocity_curriculum" / "final_model.zip")
         self.controller_model = PPO.load(controller_path)
 
         super().__init__(

@@ -42,9 +42,18 @@ intervenes in only 4.3 % of the control steps.
 ## Installation
 
 ```bash
-python -m venv venv && source venv/bin/activate
-pip install -e ".[all]" torch casadi pillow
+git clone --depth 1 https://github.com/Eper00/Adaptive-hook-drone.git   # --depth 1: without the large history
+cd Adaptive-hook-drone
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt     # the versions the thesis results were produced with
+pip install -e .
 ```
+
+Python 3.10 or newer (tested with 3.12). Run the scripts from the repository
+root, since the result paths are relative to it. The trained policies and the
+ResNet model are included, so no training is needed to reproduce the results;
+the large intermediate files (`results/analysis/methods/episodes.pkl`,
+`results/analysis/velocity/runs.pkl`) are not, the scripts regenerate them.
 
 ## Quick start
 
@@ -57,8 +66,9 @@ python -m utilities.play --env_type adaptive_director_MPC
 # one scenario with all three controllers, with videos
 python -m utilities.analyse --test scenario --seed 1290 --max_time 25 --video --video_width 960
 
-# the comparison of the thesis (500 scenarios)
+# the comparison of the thesis (500 scenarios, about 45 minutes on 6 cores)
 python -m utilities.compare_methods --episodes 500 --seed 1000
+python -m utilities.plot_comparison_thesis     # Figure 6.1
 ```
 
 Training, the identification, and the scripts of the thesis figures are

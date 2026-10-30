@@ -3,28 +3,27 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mj-drones-gym"
+name = "adaptive-hook-drone"
 version = "1.0.0"
-description = "MuJoCo-based multi-drone Gymnasium environments for single and multi-agent RL"
+description = "Payload grasping and transport with a spiral-manipulator quadcopter in MuJoCo: hierarchical RL, ResNet-based MPC, and a predictive safety filter"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.10"
+# tested versions: requirements.txt
 dependencies = [
-    "gymnasium>=0.29.0",
-    "mujoco>=3.0.0",
-    "numpy>=1.21.0",
-]
-
-[project.optional-dependencies]
-rl = ["stable-baselines3>=2.0.0"]
-marl = ["pettingzoo>=1.24.0"]
-viz = ["matplotlib>=3.5.0"]
-all = [
-    "stable-baselines3>=2.0.0",
-    "pettingzoo>=1.24.0",
-    "matplotlib>=3.5.0",
-    "Pillow>=9.0.0",
+    "numpy>=1.24",
+    "gymnasium>=1.0",
+    "mujoco>=3.2",
+    "stable-baselines3>=2.3",
+    "torch>=2.2",
+    "casadi>=3.6",
+    "matplotlib>=3.7",
+    "Pillow>=10.0",
+    "tensorboard>=2.14",
 ]
 
 [tool.setuptools.packages.find]
-include = ["multi_drone_mujoco*"]
+include = ["multi_drone_mujoco*", "utilities*"]
+
+[tool.setuptools.package-data]
+multi_drone_mujoco = ["assets/**/*"]
