@@ -1,0 +1,5090 @@
+{
+ "methods": {
+  "director": {
+   "name": "RL director",
+   "episodes": 500,
+   "success": 468,
+   "payload": 1,
+   "stability": 30,
+   "unfinished": 1,
+   "success_rate": 0.936,
+   "success_ci95": [
+    0.9110470662066095,
+    0.954304266434443
+   ],
+   "time_to_goal_median": 3.5416666666666745,
+   "success_hold_s": 5.0,
+   "failed_after_hold": 0,
+   "max_tilt_median_deg": 25.495415757875385,
+   "max_swing_median_deg": 26.87338383021664,
+   "step_time_median_ms": 2.2196259997144807,
+   "filter_active_percent": 0.0,
+   "interventions_by_reason_steps": {
+    "constraint": 0,
+    "rate": 0,
+    "stall": 0,
+    "contact": 0
+   }
+  },
+  "director_mpc": {
+   "name": "MPC director",
+   "episodes": 500,
+   "success": 497,
+   "payload": 0,
+   "stability": 3,
+   "unfinished": 0,
+   "success_rate": 0.994,
+   "success_ci95": [
+    0.9825094361891064,
+    0.9979574407023611
+   ],
+   "time_to_goal_median": 5.687499999999987,
+   "success_hold_s": 5.0,
+   "failed_after_hold": 0,
+   "max_tilt_median_deg": 15.65960142545509,
+   "max_swing_median_deg": 22.05840960637522,
+   "step_time_median_ms": 12.29151499865111,
+   "filter_active_percent": 0.0,
+   "interventions_by_reason_steps": {
+    "constraint": 0,
+    "rate": 0,
+    "stall": 0,
+    "contact": 0
+   }
+  },
+  "director_safety": {
+   "name": "RL + safety filter",
+   "episodes": 500,
+   "success": 484,
+   "payload": 3,
+   "stability": 12,
+   "unfinished": 1,
+   "success_rate": 0.968,
+   "success_ci95": [
+    0.9486546984063574,
+    0.980208658648717
+   ],
+   "time_to_goal_median": 3.687500000000009,
+   "success_hold_s": 5.0,
+   "failed_after_hold": 0,
+   "max_tilt_median_deg": 20.11227952707396,
+   "max_swing_median_deg": 26.718598169776747,
+   "step_time_median_ms": 3.852236999591696,
+   "filter_active_percent": 4.2918834813962485,
+   "interventions_by_reason_steps": {
+    "constraint": 8174,
+    "rate": 0,
+    "stall": 600,
+    "contact": 439
+   }
+  }
+ },
+ "pairs": [
+  {
+   "seed": 1000,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08757094367404439,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.6172506738544474
+  },
+  {
+   "seed": 1001,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17122423984953603,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.816793893129771
+  },
+  {
+   "seed": 1002,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0649324163994994,
+   "rl_event_time": 2.5416666666666674,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 6.46900269541779
+  },
+  {
+   "seed": 1003,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10170492788097922,
+   "rl_event_time": 3.4583333333333406,
+   "first_intervention": 0.10416666666666666,
+   "filter_active_percent": 0.4889975550122249
+  },
+  {
+   "seed": 1004,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.050118161614297545,
+   "rl_event_time": 4.187500000000008,
+   "first_intervention": 0.10416666666666666,
+   "filter_active_percent": 2.4774774774774775
+  },
+  {
+   "seed": 1005,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.058936328981637906,
+   "rl_event_time": 4.291666666666673,
+   "first_intervention": 0.3749999999999999,
+   "filter_active_percent": 2.4444444444444446
+  },
+  {
+   "seed": 1006,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11738561342307666,
+   "rl_event_time": 2.7291666666666687,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.3942558746736298
+  },
+  {
+   "seed": 1007,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12828340632052354,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.8958333333333338,
+   "filter_active_percent": 2.0253164556962027
+  },
+  {
+   "seed": 1008,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11572966495632464,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.4722222222222223
+  },
+  {
+   "seed": 1009,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15495770987964033,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 2.3696682464454977
+  },
+  {
+   "seed": 1010,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11826119560094966,
+   "rl_event_time": 3.562500000000008,
+   "first_intervention": 1.7708333333333313,
+   "filter_active_percent": 4.028436018957346
+  },
+  {
+   "seed": 1011,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1205807131644647,
+   "rl_event_time": 3.5833333333333415,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 2.1634615384615383
+  },
+  {
+   "seed": 1012,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15864578279081762,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.527638190954774
+  },
+  {
+   "seed": 1013,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14574299060357088,
+   "rl_event_time": 4.104166666666676,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 2.7149321266968327
+  },
+  {
+   "seed": 1014,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22239859099443793,
+   "rl_event_time": 4.041666666666677,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.531531531531531
+  },
+  {
+   "seed": 1015,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10434320990910255,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 3.30188679245283
+  },
+  {
+   "seed": 1016,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2449653802035772,
+   "rl_event_time": 2.270833333333332,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.4577259475218658
+  },
+  {
+   "seed": 1017,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.166960775303365,
+   "rl_event_time": 4.666666666666668,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 2.9978586723768736
+  },
+  {
+   "seed": 1018,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08938854296875277,
+   "rl_event_time": 2.562500000000001,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 4.371584699453552
+  },
+  {
+   "seed": 1019,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08450255770326462,
+   "rl_event_time": 2.7083333333333353,
+   "first_intervention": 0.0625,
+   "filter_active_percent": 2.680965147453083
+  },
+  {
+   "seed": 1020,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13747258777857704,
+   "rl_event_time": 3.2916666666666727,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.75
+  },
+  {
+   "seed": 1021,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18884362176820219,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 5.665024630541872
+  },
+  {
+   "seed": 1022,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20921806919313735,
+   "rl_event_time": 3.520833333333341,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 0.2457002457002457
+  },
+  {
+   "seed": 1023,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.041048205535387086,
+   "rl_event_time": 4.104166666666676,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.073752711496746
+  },
+  {
+   "seed": 1024,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.23273583954765395,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": 0.3749999999999999,
+   "filter_active_percent": 1.0025062656641603
+  },
+  {
+   "seed": 1025,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17633359096358023,
+   "rl_event_time": 3.39583333333334,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 3.117505995203837
+  },
+  {
+   "seed": 1026,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12407747897683453,
+   "rl_event_time": 2.875000000000003,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 7.785888077858881
+  },
+  {
+   "seed": 1027,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.02998361805991153,
+   "rl_event_time": 4.854166666666665,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 7.79467680608365
+  },
+  {
+   "seed": 1028,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.25655385611009845,
+   "rl_event_time": 3.2916666666666727,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 3.950617283950617
+  },
+  {
+   "seed": 1029,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1489224250107227,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 2.7777777777777777
+  },
+  {
+   "seed": 1030,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09094103322237265,
+   "rl_event_time": 5.166666666666661,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.8255578093306288
+  },
+  {
+   "seed": 1031,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03300754901350524,
+   "rl_event_time": 4.395833333333338,
+   "first_intervention": null,
+   "filter_active_percent": 0.0
+  },
+  {
+   "seed": 1032,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.02820028229044825,
+   "rl_event_time": 4.187500000000008,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 4.845814977973569
+  },
+  {
+   "seed": 1033,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16520812111926927,
+   "rl_event_time": 3.166666666666672,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 11.032863849765258
+  },
+  {
+   "seed": 1034,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04105901628927816,
+   "rl_event_time": 4.354166666666672,
+   "first_intervention": 0.45833333333333315,
+   "filter_active_percent": 1.3574660633484164
+  },
+  {
+   "seed": 1035,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.22951512388062645,
+   "rl_event_time": 6.958333333333302,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 17.945544554455445
+  },
+  {
+   "seed": 1036,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04678235909703168,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.70316301703163
+  },
+  {
+   "seed": 1037,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.23583782106702558,
+   "rl_event_time": 6.208333333333313,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 8.26271186440678
+  },
+  {
+   "seed": 1038,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.199980741303069,
+   "rl_event_time": 3.437500000000007,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 3.571428571428571
+  },
+  {
+   "seed": 1039,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20259189535052363,
+   "rl_event_time": 2.270833333333332,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 2.840909090909091
+  },
+  {
+   "seed": 1040,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2192712709490443,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.9184652278177456
+  },
+  {
+   "seed": 1041,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22789606419326103,
+   "rl_event_time": 3.166666666666672,
+   "first_intervention": 0.5833333333333333,
+   "filter_active_percent": 3.2828282828282833
+  },
+  {
+   "seed": 1042,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14834536272282875,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.27807486631016
+  },
+  {
+   "seed": 1043,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0927958816804197,
+   "rl_event_time": 2.8958333333333366,
+   "first_intervention": 1.0416666666666672,
+   "filter_active_percent": 2.638522427440633
+  },
+  {
+   "seed": 1044,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17747963049232127,
+   "rl_event_time": 4.354166666666672,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 3.111111111111111
+  },
+  {
+   "seed": 1045,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1039607619299582,
+   "rl_event_time": 3.4583333333333406,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 4.326923076923077
+  },
+  {
+   "seed": 1046,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.045955358908024914,
+   "rl_event_time": 3.4166666666666736,
+   "first_intervention": 0.2708333333333333,
+   "filter_active_percent": 1.466992665036675
+  },
+  {
+   "seed": 1047,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03138423051593362,
+   "rl_event_time": 2.875000000000003,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.0582010582010581
+  },
+  {
+   "seed": 1048,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.02609617632905247,
+   "rl_event_time": 4.770833333333333,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 3.4274193548387095
+  },
+  {
+   "seed": 1049,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1299167279151821,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 9.61038961038961
+  },
+  {
+   "seed": 1050,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.23733914323419494,
+   "rl_event_time": 3.125000000000005,
+   "first_intervention": 0.3541666666666666,
+   "filter_active_percent": 4.325699745547073
+  },
+  {
+   "seed": 1051,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1622950687916077,
+   "rl_event_time": 3.687500000000009,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 3.294117647058824
+  },
+  {
+   "seed": 1052,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06338052254496454,
+   "rl_event_time": 4.854166666666665,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 2.9166666666666665
+  },
+  {
+   "seed": 1053,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16784480060805404,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 0.5208333333333331,
+   "filter_active_percent": 4.739336492890995
+  },
+  {
+   "seed": 1054,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22301853372066557,
+   "rl_event_time": 3.39583333333334,
+   "first_intervention": 1.6874999999999982,
+   "filter_active_percent": 4.926108374384237
+  },
+  {
+   "seed": 1055,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08183724716924562,
+   "rl_event_time": 3.3333333333333397,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 1.9801980198019802
+  },
+  {
+   "seed": 1056,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08797581315960572,
+   "rl_event_time": 4.06250000000001,
+   "first_intervention": 0.5833333333333333,
+   "filter_active_percent": 1.3761467889908259
+  },
+  {
+   "seed": 1057,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2367432794698028,
+   "rl_event_time": 3.3333333333333397,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.5384615384615385
+  },
+  {
+   "seed": 1058,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10363729127292237,
+   "rl_event_time": 3.604166666666675,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 1.2135922330097086
+  },
+  {
+   "seed": 1059,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19726623194704127,
+   "rl_event_time": 3.5000000000000075,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 0.975609756097561
+  },
+  {
+   "seed": 1060,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09617923393330316,
+   "rl_event_time": 4.854166666666665,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 3.3126293995859215
+  },
+  {
+   "seed": 1061,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11714655228337212,
+   "rl_event_time": 3.1875000000000053,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 1.015228426395939
+  },
+  {
+   "seed": 1062,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2583933213679001,
+   "rl_event_time": 4.250000000000007,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 5.274725274725275
+  },
+  {
+   "seed": 1063,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.227351410962532,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.25,
+   "filter_active_percent": 2.512562814070352
+  },
+  {
+   "seed": 1064,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0847530932414446,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 1.270833333333333,
+   "filter_active_percent": 2.481389578163772
+  },
+  {
+   "seed": 1065,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1262733614736747,
+   "rl_event_time": 4.4791666666666705,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 3.9215686274509802
+  },
+  {
+   "seed": 1066,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13392516443076413,
+   "rl_event_time": 4.125000000000009,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 0.9153318077803204
+  },
+  {
+   "seed": 1067,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1825278731400552,
+   "rl_event_time": 3.604166666666675,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 2.663438256658596
+  },
+  {
+   "seed": 1068,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.209001531979056,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 1.8957345971563981
+  },
+  {
+   "seed": 1069,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2021732252289057,
+   "rl_event_time": 3.5833333333333415,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 4.166666666666666
+  },
+  {
+   "seed": 1070,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.051816946176516644,
+   "rl_event_time": 3.166666666666672,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.263157894736842
+  },
+  {
+   "seed": 1071,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04775933794582607,
+   "rl_event_time": 3.916666666666677,
+   "first_intervention": 0.08333333333333333,
+   "filter_active_percent": 6.712962962962964
+  },
+  {
+   "seed": 1072,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06753894180940366,
+   "rl_event_time": 3.2916666666666727,
+   "first_intervention": 1.6041666666666652,
+   "filter_active_percent": 3.722084367245657
+  },
+  {
+   "seed": 1073,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19741979325084913,
+   "rl_event_time": 3.562500000000008,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.32541567695962
+  },
+  {
+   "seed": 1074,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08951986624949301,
+   "rl_event_time": 4.166666666666675,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 6.349206349206349
+  },
+  {
+   "seed": 1075,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19267804736009353,
+   "rl_event_time": 4.562500000000003,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 3.0172413793103448
+  },
+  {
+   "seed": 1076,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11353416455805204,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 2.863961813842482
+  },
+  {
+   "seed": 1077,
+   "rl": "success",
+   "filter": "stability",
+   "category": "broken",
+   "mass": 0.2391585317700797,
+   "rl_event_time": 5.0208333333333295,
+   "first_intervention": 0.47916666666666646,
+   "filter_active_percent": 20.537428023032632
+  },
+  {
+   "seed": 1078,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12548972014245158,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.45833333333333315,
+   "filter_active_percent": 2.5773195876288657
+  },
+  {
+   "seed": 1079,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13025558802633674,
+   "rl_event_time": 3.479166666666674,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 7.4162679425837315
+  },
+  {
+   "seed": 1080,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2536409319068114,
+   "rl_event_time": 3.125000000000005,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 2.030456852791878
+  },
+  {
+   "seed": 1081,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18222628037309077,
+   "rl_event_time": 2.9375000000000036,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.208333333333334
+  },
+  {
+   "seed": 1082,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03539973609597103,
+   "rl_event_time": 2.645833333333335,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 0.8174386920980926
+  },
+  {
+   "seed": 1083,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20758023977712814,
+   "rl_event_time": 3.2916666666666727,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.5893719806763285
+  },
+  {
+   "seed": 1084,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.028921366219004867,
+   "rl_event_time": 4.4583333333333375,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 5.753968253968254
+  },
+  {
+   "seed": 1085,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1206367997890587,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 4.567307692307692
+  },
+  {
+   "seed": 1086,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.025170190437319676,
+   "rl_event_time": 3.5000000000000075,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 4.556354916067146
+  },
+  {
+   "seed": 1087,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11978891722987693,
+   "rl_event_time": 3.7083333333333424,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.431980906921241
+  },
+  {
+   "seed": 1088,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08015428213868954,
+   "rl_event_time": 4.75,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 4.008438818565401
+  },
+  {
+   "seed": 1089,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15548682347999349,
+   "rl_event_time": 3.1875000000000053,
+   "first_intervention": 0.2708333333333333,
+   "filter_active_percent": 3.27455919395466
+  },
+  {
+   "seed": 1090,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18021792164346218,
+   "rl_event_time": 4.291666666666673,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.262443438914027
+  },
+  {
+   "seed": 1091,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19172647186307526,
+   "rl_event_time": 4.229166666666674,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 2.2172949002217295
+  },
+  {
+   "seed": 1092,
+   "rl": "stability",
+   "filter": "stability",
+   "category": "not rescued",
+   "mass": 0.25553247136762,
+   "rl_event_time": 5.5624999999999885,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 33.10104529616725
+  },
+  {
+   "seed": 1093,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13639740532505537,
+   "rl_event_time": 2.833333333333336,
+   "first_intervention": 1.3958333333333326,
+   "filter_active_percent": 5.2356020942408374
+  },
+  {
+   "seed": 1094,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21020393361207543,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 1.0075566750629723
+  },
+  {
+   "seed": 1095,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17461818782145894,
+   "rl_event_time": 3.083333333333338,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.729528535980149
+  },
+  {
+   "seed": 1096,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1017210599205499,
+   "rl_event_time": 2.9791666666666705,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 4.3478260869565215
+  },
+  {
+   "seed": 1097,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12576187401411829,
+   "rl_event_time": 3.479166666666674,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.142857142857143
+  },
+  {
+   "seed": 1098,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22000379805880113,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 4.691358024691358
+  },
+  {
+   "seed": 1099,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.025617838208571646,
+   "rl_event_time": 2.8958333333333366,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 3.4031413612565444
+  },
+  {
+   "seed": 1100,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09067432749492305,
+   "rl_event_time": 2.91666666666667,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.5906735751295336
+  },
+  {
+   "seed": 1101,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18847814680004277,
+   "rl_event_time": 3.4583333333333406,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 1.9230769230769231
+  },
+  {
+   "seed": 1102,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15938139979043284,
+   "rl_event_time": 4.5000000000000036,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.585152838427948
+  },
+  {
+   "seed": 1103,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03624105728132105,
+   "rl_event_time": 2.5833333333333344,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 1.366120218579235
+  },
+  {
+   "seed": 1104,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04550426792939386,
+   "rl_event_time": 4.437500000000004,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.7278617710583155
+  },
+  {
+   "seed": 1105,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08726868854239143,
+   "rl_event_time": 3.916666666666677,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 3.0023094688221708
+  },
+  {
+   "seed": 1106,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20662800083721766,
+   "rl_event_time": 4.75,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 3.4334763948497855
+  },
+  {
+   "seed": 1107,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22033616220031238,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 1.5208333333333321,
+   "filter_active_percent": 0.9708737864077669
+  },
+  {
+   "seed": 1108,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.025754880999295217,
+   "rl_event_time": 3.1041666666666714,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.040404040404041
+  },
+  {
+   "seed": 1109,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2239059422369748,
+   "rl_event_time": 3.4583333333333406,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.2058823529411766
+  },
+  {
+   "seed": 1110,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1746427755724311,
+   "rl_event_time": 2.791666666666669,
+   "first_intervention": 0.0625,
+   "filter_active_percent": 1.6
+  },
+  {
+   "seed": 1111,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15375280619659806,
+   "rl_event_time": 2.479166666666667,
+   "first_intervention": null,
+   "filter_active_percent": 0.0
+  },
+  {
+   "seed": 1112,
+   "rl": "success",
+   "filter": "stability",
+   "category": "broken",
+   "mass": 0.2569832748931485,
+   "rl_event_time": 2.8958333333333366,
+   "first_intervention": 0.3958333333333332,
+   "filter_active_percent": 44.4
+  },
+  {
+   "seed": 1113,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19664120522830322,
+   "rl_event_time": 3.604166666666675,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 5.238095238095238
+  },
+  {
+   "seed": 1114,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06808365880709037,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.3262599469496021
+  },
+  {
+   "seed": 1115,
+   "rl": "success",
+   "filter": "payload",
+   "category": "broken",
+   "mass": 0.24054161094857254,
+   "rl_event_time": 3.9375000000000107,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.7500000000000002
+  },
+  {
+   "seed": 1116,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.2273385061969034,
+   "rl_event_time": 6.083333333333314,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 0.7594936708860759
+  },
+  {
+   "seed": 1117,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03218436193248691,
+   "rl_event_time": 3.083333333333338,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 1.7811704834605597
+  },
+  {
+   "seed": 1118,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18040400552490707,
+   "rl_event_time": 6.1458333333333135,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.631067961165048
+  },
+  {
+   "seed": 1119,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.243577276015062,
+   "rl_event_time": 3.7500000000000093,
+   "first_intervention": 1.666666666666665,
+   "filter_active_percent": 9.767441860465116
+  },
+  {
+   "seed": 1120,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03968366892324705,
+   "rl_event_time": 4.583333333333336,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 0.6437768240343348
+  },
+  {
+   "seed": 1121,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07956952823666272,
+   "rl_event_time": 3.0625000000000044,
+   "first_intervention": 1.749999999999998,
+   "filter_active_percent": 10.352941176470589
+  },
+  {
+   "seed": 1122,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1603967473929632,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 5.025125628140704
+  },
+  {
+   "seed": 1123,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11255796628361611,
+   "rl_event_time": 2.8958333333333366,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.451612903225806
+  },
+  {
+   "seed": 1124,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16824465016394538,
+   "rl_event_time": 3.4166666666666736,
+   "first_intervention": 0.10416666666666666,
+   "filter_active_percent": 2.955665024630542
+  },
+  {
+   "seed": 1125,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07501681551186111,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 1.4285714285714286
+  },
+  {
+   "seed": 1126,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09434531648454794,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 0.08333333333333333,
+   "filter_active_percent": 1.4423076923076923
+  },
+  {
+   "seed": 1127,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.030833444945575814,
+   "rl_event_time": 2.5833333333333344,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 2.459016393442623
+  },
+  {
+   "seed": 1128,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18088952593530525,
+   "rl_event_time": 3.1875000000000053,
+   "first_intervention": 0.45833333333333315,
+   "filter_active_percent": 3.571428571428571
+  },
+  {
+   "seed": 1129,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.21617137713100387,
+   "rl_event_time": 5.145833333333328,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 9.288537549407115
+  },
+  {
+   "seed": 1130,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24264435525578246,
+   "rl_event_time": 2.604166666666668,
+   "first_intervention": 0.25,
+   "filter_active_percent": 25.916666666666664
+  },
+  {
+   "seed": 1131,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22121945249765437,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.4184397163120568
+  },
+  {
+   "seed": 1132,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1856345676405077,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 3.0379746835443036
+  },
+  {
+   "seed": 1133,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24219401608288135,
+   "rl_event_time": 4.687500000000001,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.910828025477707
+  },
+  {
+   "seed": 1134,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.036602561894414194,
+   "rl_event_time": 4.020833333333344,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.89908256880734
+  },
+  {
+   "seed": 1135,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.052432619700380455,
+   "rl_event_time": 2.6875000000000018,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 3.926701570680628
+  },
+  {
+   "seed": 1136,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07572000839640598,
+   "rl_event_time": 3.6250000000000084,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 3.0952380952380953
+  },
+  {
+   "seed": 1137,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11021643519158673,
+   "rl_event_time": 3.958333333333344,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 0.9345794392523363
+  },
+  {
+   "seed": 1138,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14842685550750584,
+   "rl_event_time": 3.2708333333333393,
+   "first_intervention": 1.5208333333333321,
+   "filter_active_percent": 8.724832214765101
+  },
+  {
+   "seed": 1139,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08488188998715633,
+   "rl_event_time": 4.312500000000006,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 4.366812227074235
+  },
+  {
+   "seed": 1140,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13858003202308333,
+   "rl_event_time": 2.645833333333335,
+   "first_intervention": 0.10416666666666666,
+   "filter_active_percent": 2.4324324324324325
+  },
+  {
+   "seed": 1141,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06825737145859476,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.4166666666666665,
+   "filter_active_percent": 4.147465437788019
+  },
+  {
+   "seed": 1142,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16565879216859603,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 2.6378896882494005
+  },
+  {
+   "seed": 1143,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0853762393697042,
+   "rl_event_time": 2.875000000000003,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 4.2105263157894735
+  },
+  {
+   "seed": 1144,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.2268131896198649,
+   "rl_event_time": 6.18749999999998,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 4.668304668304668
+  },
+  {
+   "seed": 1145,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.23832320431604762,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.203661327231121
+  },
+  {
+   "seed": 1146,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1777606402765841,
+   "rl_event_time": 3.1041666666666714,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.801007556675064
+  },
+  {
+   "seed": 1147,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16767918324783682,
+   "rl_event_time": 2.5833333333333344,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 3.2697547683923704
+  },
+  {
+   "seed": 1148,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20475356576516862,
+   "rl_event_time": 4.104166666666676,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 1.3761467889908259
+  },
+  {
+   "seed": 1149,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08702535436797226,
+   "rl_event_time": 3.6250000000000084,
+   "first_intervention": 1.4791666666666656,
+   "filter_active_percent": 3.614457831325301
+  },
+  {
+   "seed": 1150,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.226693424926332,
+   "rl_event_time": 8.291666666666629,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 17.764705882352942
+  },
+  {
+   "seed": 1151,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1838457568305141,
+   "rl_event_time": 4.4583333333333375,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 1.3186813186813187
+  },
+  {
+   "seed": 1152,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.051646783535029064,
+   "rl_event_time": 3.083333333333338,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 2.295918367346939
+  },
+  {
+   "seed": 1153,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05923819852771918,
+   "rl_event_time": 3.354166666666673,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 3.40632603406326
+  },
+  {
+   "seed": 1154,
+   "rl": "stability",
+   "filter": "stability",
+   "category": "not rescued",
+   "mass": 0.21305259242261615,
+   "rl_event_time": 5.479166666666656,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 33.014354066985646
+  },
+  {
+   "seed": 1155,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22954720398159206,
+   "rl_event_time": 4.291666666666673,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.0
+  },
+  {
+   "seed": 1156,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12118682800159997,
+   "rl_event_time": 4.229166666666674,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 1.1111111111111112
+  },
+  {
+   "seed": 1157,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2132459845240358,
+   "rl_event_time": 3.479166666666674,
+   "first_intervention": 1.5208333333333321,
+   "filter_active_percent": 0.2457002457002457
+  },
+  {
+   "seed": 1158,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.058826485818901965,
+   "rl_event_time": 2.6875000000000018,
+   "first_intervention": 1.1666666666666667,
+   "filter_active_percent": 8.962264150943396
+  },
+  {
+   "seed": 1159,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21092378051682495,
+   "rl_event_time": 2.5000000000000004,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 5.785123966942149
+  },
+  {
+   "seed": 1160,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1446412530651418,
+   "rl_event_time": 2.6250000000000013,
+   "first_intervention": 1.4583333333333324,
+   "filter_active_percent": 3.2697547683923704
+  },
+  {
+   "seed": 1161,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21234687015148487,
+   "rl_event_time": 2.9375000000000036,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 4.896907216494846
+  },
+  {
+   "seed": 1162,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13314075392249305,
+   "rl_event_time": 4.666666666666668,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.141327623126338
+  },
+  {
+   "seed": 1163,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.126877072138929,
+   "rl_event_time": 2.833333333333336,
+   "first_intervention": 0.3541666666666666,
+   "filter_active_percent": 0.7874015748031495
+  },
+  {
+   "seed": 1164,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13003576659696445,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 5.25
+  },
+  {
+   "seed": 1165,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14609904361834067,
+   "rl_event_time": 3.8125000000000098,
+   "first_intervention": 0.8750000000000004,
+   "filter_active_percent": 2.810304449648712
+  },
+  {
+   "seed": 1166,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0875384656142702,
+   "rl_event_time": 3.000000000000004,
+   "first_intervention": 0.25,
+   "filter_active_percent": 0.2597402597402597
+  },
+  {
+   "seed": 1167,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24468830017847537,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 0.7518796992481203
+  },
+  {
+   "seed": 1168,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1520252780991286,
+   "rl_event_time": 2.7708333333333357,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.149732620320856
+  },
+  {
+   "seed": 1169,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05740921361526501,
+   "rl_event_time": 3.8958333333333437,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 4.157043879907621
+  },
+  {
+   "seed": 1170,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24168419768582053,
+   "rl_event_time": 3.041666666666671,
+   "first_intervention": 0.2708333333333333,
+   "filter_active_percent": 11.246943765281173
+  },
+  {
+   "seed": 1171,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06332891598237267,
+   "rl_event_time": 2.7708333333333357,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 10.436893203883495
+  },
+  {
+   "seed": 1172,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1868613379596186,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": 0.4166666666666665,
+   "filter_active_percent": 2.4096385542168677
+  },
+  {
+   "seed": 1173,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0336105870813039,
+   "rl_event_time": 4.5000000000000036,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.7444933920704844
+  },
+  {
+   "seed": 1174,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19533271396213922,
+   "rl_event_time": 3.3333333333333397,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 6.372549019607843
+  },
+  {
+   "seed": 1175,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10957615579114631,
+   "rl_event_time": 3.8333333333333433,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 0.7075471698113208
+  },
+  {
+   "seed": 1176,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1746771226311911,
+   "rl_event_time": 4.000000000000011,
+   "first_intervention": 0.33333333333333326,
+   "filter_active_percent": 2.4719101123595504
+  },
+  {
+   "seed": 1177,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16836784670095506,
+   "rl_event_time": 3.166666666666672,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 0.7692307692307693
+  },
+  {
+   "seed": 1178,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05678476440038137,
+   "rl_event_time": 4.395833333333338,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 5.054945054945055
+  },
+  {
+   "seed": 1179,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12674855091572115,
+   "rl_event_time": 3.2916666666666727,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.27455919395466
+  },
+  {
+   "seed": 1180,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11213118722881463,
+   "rl_event_time": 3.7083333333333424,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.4218009478672986
+  },
+  {
+   "seed": 1181,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0365260034885429,
+   "rl_event_time": 2.645833333333335,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.866666666666667
+  },
+  {
+   "seed": 1182,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2314555611627792,
+   "rl_event_time": 2.9375000000000036,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 1.837270341207349
+  },
+  {
+   "seed": 1183,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04386564678022542,
+   "rl_event_time": 3.5000000000000075,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 0.9732360097323601
+  },
+  {
+   "seed": 1184,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08379552135109503,
+   "rl_event_time": 2.791666666666669,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.225806451612903
+  },
+  {
+   "seed": 1185,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05309645434606899,
+   "rl_event_time": 4.187500000000008,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 1.366742596810934
+  },
+  {
+   "seed": 1186,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13865486685742973,
+   "rl_event_time": 4.916666666666664,
+   "first_intervention": 0.6458333333333334,
+   "filter_active_percent": 6.066945606694561
+  },
+  {
+   "seed": 1187,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10967748493613214,
+   "rl_event_time": 3.520833333333341,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 0.4878048780487805
+  },
+  {
+   "seed": 1188,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.24510977943989554,
+   "rl_event_time": 5.791666666666652,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.444987775061125
+  },
+  {
+   "seed": 1189,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19526054528148748,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.2531328320802004
+  },
+  {
+   "seed": 1190,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13458696637685091,
+   "rl_event_time": 2.91666666666667,
+   "first_intervention": 1.3124999999999996,
+   "filter_active_percent": 2.8871391076115485
+  },
+  {
+   "seed": 1191,
+   "rl": "stability",
+   "filter": "stability",
+   "category": "not rescued",
+   "mass": 0.2494306821796055,
+   "rl_event_time": 4.4583333333333375,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 31.983805668016196
+  },
+  {
+   "seed": 1192,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22978625218836238,
+   "rl_event_time": 4.166666666666675,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 0.6802721088435374
+  },
+  {
+   "seed": 1193,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06952377883802138,
+   "rl_event_time": 2.833333333333336,
+   "first_intervention": null,
+   "filter_active_percent": 0.0
+  },
+  {
+   "seed": 1194,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1647355866679753,
+   "rl_event_time": 3.958333333333344,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 5.949656750572083
+  },
+  {
+   "seed": 1195,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21886254599273716,
+   "rl_event_time": 3.2916666666666727,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 4.914004914004914
+  },
+  {
+   "seed": 1196,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24144697619823283,
+   "rl_event_time": 2.958333333333337,
+   "first_intervention": 1.1458333333333335,
+   "filter_active_percent": 2.368421052631579
+  },
+  {
+   "seed": 1197,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.024767866706485862,
+   "rl_event_time": 4.895833333333331,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.7426160337552745
+  },
+  {
+   "seed": 1198,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1851015284882923,
+   "rl_event_time": 4.562500000000003,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.079913606911447
+  },
+  {
+   "seed": 1199,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15916775992124818,
+   "rl_event_time": 3.6666666666666754,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 0.7177033492822966
+  },
+  {
+   "seed": 1200,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09437066654563732,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 1.7114914425427872
+  },
+  {
+   "seed": 1201,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1556504799935407,
+   "rl_event_time": 3.083333333333338,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.7766497461928936
+  },
+  {
+   "seed": 1202,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03206846479299636,
+   "rl_event_time": 3.8958333333333437,
+   "first_intervention": 0.25,
+   "filter_active_percent": 2.320185614849188
+  },
+  {
+   "seed": 1203,
+   "rl": "stability",
+   "filter": "stability",
+   "category": "not rescued",
+   "mass": 0.25827352727760683,
+   "rl_event_time": 0.5833333333333333,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 70.96774193548387
+  },
+  {
+   "seed": 1204,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04284742857335593,
+   "rl_event_time": 4.437500000000004,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 2.4070021881838075
+  },
+  {
+   "seed": 1205,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.029609622470889406,
+   "rl_event_time": 4.229166666666674,
+   "first_intervention": 0.5208333333333331,
+   "filter_active_percent": 2.6785714285714284
+  },
+  {
+   "seed": 1206,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11398344834993536,
+   "rl_event_time": 4.645833333333335,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 0.4273504273504274
+  },
+  {
+   "seed": 1207,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10491120018481574,
+   "rl_event_time": 3.6666666666666754,
+   "first_intervention": 0.25,
+   "filter_active_percent": 4.883720930232558
+  },
+  {
+   "seed": 1208,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07249071160426289,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.195804195804196
+  },
+  {
+   "seed": 1209,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0486305410886581,
+   "rl_event_time": 3.562500000000008,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.0889929742388755
+  },
+  {
+   "seed": 1210,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06782500783187274,
+   "rl_event_time": 2.91666666666667,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.5706806282722512
+  },
+  {
+   "seed": 1211,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16788702031232927,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.8834951456310676
+  },
+  {
+   "seed": 1212,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16386649597509184,
+   "rl_event_time": 2.7291666666666687,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.4128686327077746
+  },
+  {
+   "seed": 1213,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08729694702652732,
+   "rl_event_time": 3.8541666666666767,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.3986013986013985
+  },
+  {
+   "seed": 1214,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16909431695511223,
+   "rl_event_time": 3.0625000000000044,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 1.0309278350515463
+  },
+  {
+   "seed": 1215,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17827536815092299,
+   "rl_event_time": 3.2708333333333393,
+   "first_intervention": 0.3958333333333332,
+   "filter_active_percent": 3.061224489795918
+  },
+  {
+   "seed": 1216,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0549214899523561,
+   "rl_event_time": 3.0208333333333375,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 3.6458333333333335
+  },
+  {
+   "seed": 1217,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1774534368094863,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 0.8
+  },
+  {
+   "seed": 1218,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16606658573325725,
+   "rl_event_time": 2.5833333333333344,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.3736263736263736
+  },
+  {
+   "seed": 1219,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08338568188252239,
+   "rl_event_time": 3.1875000000000053,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.240694789081886
+  },
+  {
+   "seed": 1220,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16050350415210035,
+   "rl_event_time": 4.604166666666669,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 3.640256959314775
+  },
+  {
+   "seed": 1221,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11716820174272231,
+   "rl_event_time": 2.875000000000003,
+   "first_intervention": 0.3958333333333332,
+   "filter_active_percent": 1.3404825737265416
+  },
+  {
+   "seed": 1222,
+   "rl": "success",
+   "filter": "stability",
+   "category": "broken",
+   "mass": 0.22815600471811875,
+   "rl_event_time": 3.354166666666673,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 27.9445727482679
+  },
+  {
+   "seed": 1223,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1873466489216501,
+   "rl_event_time": 3.7083333333333424,
+   "first_intervention": 0.08333333333333333,
+   "filter_active_percent": 2.810304449648712
+  },
+  {
+   "seed": 1224,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07292908917445122,
+   "rl_event_time": 4.437500000000004,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.564551422319474
+  },
+  {
+   "seed": 1225,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.039180619918026,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.8957345971563981
+  },
+  {
+   "seed": 1226,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10783257374999645,
+   "rl_event_time": 4.375000000000005,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.1185682326621924
+  },
+  {
+   "seed": 1227,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04114334171528992,
+   "rl_event_time": 3.125000000000005,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.7676767676767675
+  },
+  {
+   "seed": 1228,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04358666687219283,
+   "rl_event_time": 4.333333333333339,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.4444444444444446
+  },
+  {
+   "seed": 1229,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1995898939902551,
+   "rl_event_time": 3.9375000000000107,
+   "first_intervention": 1.2916666666666663,
+   "filter_active_percent": 0.7009345794392523
+  },
+  {
+   "seed": 1230,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04671662858349538,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 2.75
+  },
+  {
+   "seed": 1231,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14494029212786125,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 1.4925373134328357
+  },
+  {
+   "seed": 1232,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0379965534490962,
+   "rl_event_time": 2.604166666666668,
+   "first_intervention": 0.33333333333333326,
+   "filter_active_percent": 0.5494505494505495
+  },
+  {
+   "seed": 1233,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14012613453434022,
+   "rl_event_time": 3.5833333333333415,
+   "first_intervention": 0.3541666666666666,
+   "filter_active_percent": 2.669902912621359
+  },
+  {
+   "seed": 1234,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07802391038066842,
+   "rl_event_time": 4.666666666666668,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 4.721030042918455
+  },
+  {
+   "seed": 1235,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0848792088954652,
+   "rl_event_time": 3.9375000000000107,
+   "first_intervention": 0.25,
+   "filter_active_percent": 1.3824884792626728
+  },
+  {
+   "seed": 1236,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04859059152713121,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 4.218362282878412
+  },
+  {
+   "seed": 1237,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09049013713951928,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.9800995024875623
+  },
+  {
+   "seed": 1238,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12834704829662383,
+   "rl_event_time": 3.7500000000000093,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 1.1764705882352942
+  },
+  {
+   "seed": 1239,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13113048036322905,
+   "rl_event_time": 3.770833333333343,
+   "first_intervention": 1.1875,
+   "filter_active_percent": 1.1820330969267139
+  },
+  {
+   "seed": 1240,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06429086708762491,
+   "rl_event_time": 3.6666666666666754,
+   "first_intervention": 0.2708333333333333,
+   "filter_active_percent": 5.895691609977324
+  },
+  {
+   "seed": 1241,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19504530901857883,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 1.256281407035176
+  },
+  {
+   "seed": 1242,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1694314401258091,
+   "rl_event_time": 4.250000000000007,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 1.1235955056179776
+  },
+  {
+   "seed": 1243,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09000238631593369,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.125
+  },
+  {
+   "seed": 1244,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.25811123482293524,
+   "rl_event_time": 4.06250000000001,
+   "first_intervention": 0.5416666666666665,
+   "filter_active_percent": 6.88836104513064
+  },
+  {
+   "seed": 1245,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06383420773525256,
+   "rl_event_time": 4.208333333333341,
+   "first_intervention": null,
+   "filter_active_percent": 0.0
+  },
+  {
+   "seed": 1246,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12261380949106185,
+   "rl_event_time": 3.3333333333333397,
+   "first_intervention": 1.3124999999999996,
+   "filter_active_percent": 2.7027027027027026
+  },
+  {
+   "seed": 1247,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.024493259899890638,
+   "rl_event_time": 4.104166666666676,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 1.1261261261261262
+  },
+  {
+   "seed": 1248,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0401017659301997,
+   "rl_event_time": 2.833333333333336,
+   "first_intervention": 1.666666666666665,
+   "filter_active_percent": 9.865470852017937
+  },
+  {
+   "seed": 1249,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15553842820392869,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.4166666666666665,
+   "filter_active_percent": 1.0126582278481013
+  },
+  {
+   "seed": 1250,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19910137792109264,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 1.4851485148514851
+  },
+  {
+   "seed": 1251,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10474978959102572,
+   "rl_event_time": 2.7083333333333353,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.393617021276596
+  },
+  {
+   "seed": 1252,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03483625475196834,
+   "rl_event_time": 3.125000000000005,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 3.8461538461538463
+  },
+  {
+   "seed": 1253,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09901065508930317,
+   "rl_event_time": 3.7500000000000093,
+   "first_intervention": 3.8541666666666767,
+   "filter_active_percent": 0.7142857142857143
+  },
+  {
+   "seed": 1254,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03418414951890649,
+   "rl_event_time": 3.000000000000004,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.0761421319796955
+  },
+  {
+   "seed": 1255,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15977850579515662,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 2.576112412177986
+  },
+  {
+   "seed": 1256,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.02744479019780019,
+   "rl_event_time": 3.7083333333333424,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 1.1820330969267139
+  },
+  {
+   "seed": 1257,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2508188713845682,
+   "rl_event_time": 4.27083333333334,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 2.4663677130044843
+  },
+  {
+   "seed": 1258,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07550308144537085,
+   "rl_event_time": 3.958333333333344,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 1.6055045871559634
+  },
+  {
+   "seed": 1259,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09139950107331754,
+   "rl_event_time": 4.416666666666671,
+   "first_intervention": 1.2291666666666665,
+   "filter_active_percent": 0.8830022075055187
+  },
+  {
+   "seed": 1260,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24694282688762204,
+   "rl_event_time": 3.2916666666666727,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.444987775061125
+  },
+  {
+   "seed": 1261,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06618240184429122,
+   "rl_event_time": 3.7083333333333424,
+   "first_intervention": 0.6041666666666666,
+   "filter_active_percent": 3.7383177570093453
+  },
+  {
+   "seed": 1262,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03194617044332215,
+   "rl_event_time": 4.000000000000011,
+   "first_intervention": 0.3541666666666666,
+   "filter_active_percent": 1.5945330296127564
+  },
+  {
+   "seed": 1263,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24797041295308309,
+   "rl_event_time": 3.479166666666674,
+   "first_intervention": 0.6458333333333334,
+   "filter_active_percent": 3.125
+  },
+  {
+   "seed": 1264,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17289792704028045,
+   "rl_event_time": 3.354166666666673,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 2.729528535980149
+  },
+  {
+   "seed": 1265,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08848734850965492,
+   "rl_event_time": 3.770833333333343,
+   "first_intervention": 1.2916666666666663,
+   "filter_active_percent": 3.5629453681710213
+  },
+  {
+   "seed": 1266,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07972645176348306,
+   "rl_event_time": 4.666666666666668,
+   "first_intervention": 0.6041666666666666,
+   "filter_active_percent": 5.042016806722689
+  },
+  {
+   "seed": 1267,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14328754906904617,
+   "rl_event_time": 4.27083333333334,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 3.8548752834467117
+  },
+  {
+   "seed": 1268,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14667341977489637,
+   "rl_event_time": 3.916666666666677,
+   "first_intervention": 0.8333333333333337,
+   "filter_active_percent": 4.128440366972478
+  },
+  {
+   "seed": 1269,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08617890066525657,
+   "rl_event_time": 4.041666666666677,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.9719626168224296
+  },
+  {
+   "seed": 1270,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14898626179364322,
+   "rl_event_time": 3.354166666666673,
+   "first_intervention": 0.33333333333333326,
+   "filter_active_percent": 1.4742014742014742
+  },
+  {
+   "seed": 1271,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12360357600659319,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 1.8518518518518516
+  },
+  {
+   "seed": 1272,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04127199941487941,
+   "rl_event_time": 4.625000000000002,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 8.571428571428571
+  },
+  {
+   "seed": 1273,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2260914722789409,
+   "rl_event_time": 2.7708333333333357,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 5.88235294117647
+  },
+  {
+   "seed": 1274,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08019249183150903,
+   "rl_event_time": 2.5833333333333344,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.168021680216802
+  },
+  {
+   "seed": 1275,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.035976266966843036,
+   "rl_event_time": 2.7708333333333357,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 3.1578947368421053
+  },
+  {
+   "seed": 1276,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12694727682602996,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 0.7075471698113208
+  },
+  {
+   "seed": 1277,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21876932253896475,
+   "rl_event_time": 2.8958333333333366,
+   "first_intervention": 1.7708333333333313,
+   "filter_active_percent": 4.3927648578811365
+  },
+  {
+   "seed": 1278,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1856882319696768,
+   "rl_event_time": 3.958333333333344,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 3.5211267605633805
+  },
+  {
+   "seed": 1279,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10895146491439633,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 4.8346055979643765
+  },
+  {
+   "seed": 1280,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2556235686891951,
+   "rl_event_time": 3.5000000000000075,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 10.585585585585585
+  },
+  {
+   "seed": 1281,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.2595624574184429,
+   "rl_event_time": 5.395833333333324,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 15.370018975332068
+  },
+  {
+   "seed": 1282,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.1581965363122438,
+   "rl_event_time": 6.562499999999974,
+   "first_intervention": 3.1041666666666714,
+   "filter_active_percent": 5.287356321839081
+  },
+  {
+   "seed": 1283,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09803969847446495,
+   "rl_event_time": 4.625000000000002,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.910569105691057
+  },
+  {
+   "seed": 1284,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0354569969474406,
+   "rl_event_time": 2.7083333333333353,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 1.3404825737265416
+  },
+  {
+   "seed": 1285,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09936311413158054,
+   "rl_event_time": 3.0625000000000044,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 2.8205128205128207
+  },
+  {
+   "seed": 1286,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03903644419951777,
+   "rl_event_time": 4.54166666666667,
+   "first_intervention": 0.10416666666666666,
+   "filter_active_percent": 2.380952380952381
+  },
+  {
+   "seed": 1287,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22557699355372424,
+   "rl_event_time": 3.916666666666677,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 17.300380228136884
+  },
+  {
+   "seed": 1288,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10686790927797812,
+   "rl_event_time": 2.7083333333333353,
+   "first_intervention": 0.5833333333333333,
+   "filter_active_percent": 1.6085790884718498
+  },
+  {
+   "seed": 1289,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2077396582548553,
+   "rl_event_time": 4.9999999999999964,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.2916666666666665
+  },
+  {
+   "seed": 1290,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.25913416393682365,
+   "rl_event_time": 3.7916666666666763,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 4.622871046228711
+  },
+  {
+   "seed": 1291,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.2563364662574106,
+   "rl_event_time": 4.208333333333341,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 18.25242718446602
+  },
+  {
+   "seed": 1292,
+   "rl": "stability",
+   "filter": "payload",
+   "category": "not rescued",
+   "mass": 0.2554067341631244,
+   "rl_event_time": 7.229166666666631,
+   "first_intervention": 0.33333333333333326,
+   "filter_active_percent": 4.75
+  },
+  {
+   "seed": 1293,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1310692262762681,
+   "rl_event_time": 3.8541666666666767,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 4.137931034482759
+  },
+  {
+   "seed": 1294,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22303001338356285,
+   "rl_event_time": 3.041666666666671,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 11.02661596958175
+  },
+  {
+   "seed": 1295,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14576760623873875,
+   "rl_event_time": 2.958333333333337,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.8947368421052633
+  },
+  {
+   "seed": 1296,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10971868997290023,
+   "rl_event_time": 2.312499999999999,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.7094017094017095
+  },
+  {
+   "seed": 1297,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17929541189929066,
+   "rl_event_time": 3.208333333333339,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.507537688442211
+  },
+  {
+   "seed": 1298,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.2279637312479817,
+   "rl_event_time": 4.145833333333342,
+   "first_intervention": 0.5833333333333333,
+   "filter_active_percent": 3.6855036855036856
+  },
+  {
+   "seed": 1299,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13678436730344354,
+   "rl_event_time": 2.8541666666666696,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.574803149606299
+  },
+  {
+   "seed": 1300,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2580568500110108,
+   "rl_event_time": 3.8541666666666767,
+   "first_intervention": 0.43749999999999983,
+   "filter_active_percent": 3.4722222222222223
+  },
+  {
+   "seed": 1301,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22107781235028642,
+   "rl_event_time": 4.4583333333333375,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 8.49673202614379
+  },
+  {
+   "seed": 1302,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05445992521344752,
+   "rl_event_time": 2.5833333333333344,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.696132596685083
+  },
+  {
+   "seed": 1303,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11301346342636519,
+   "rl_event_time": 3.6666666666666754,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.1686746987951806
+  },
+  {
+   "seed": 1304,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19476703097437592,
+   "rl_event_time": 3.562500000000008,
+   "first_intervention": 1.7083333333333315,
+   "filter_active_percent": 1.6826923076923077
+  },
+  {
+   "seed": 1305,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07400828003872886,
+   "rl_event_time": 3.6666666666666754,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 3.110047846889952
+  },
+  {
+   "seed": 1306,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.25268701305938396,
+   "rl_event_time": 3.770833333333343,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 1.8912529550827424
+  },
+  {
+   "seed": 1307,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19860483072804444,
+   "rl_event_time": 3.1875000000000053,
+   "first_intervention": 3.354166666666673,
+   "filter_active_percent": 0.2544529262086514
+  },
+  {
+   "seed": 1308,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04429958068093015,
+   "rl_event_time": 4.791666666666666,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 1.0570824524312896
+  },
+  {
+   "seed": 1309,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.235311656554999,
+   "rl_event_time": 2.8125000000000027,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.804749340369393
+  },
+  {
+   "seed": 1310,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.054494704075980956,
+   "rl_event_time": 4.291666666666673,
+   "first_intervention": 0.10416666666666666,
+   "filter_active_percent": 4.47427293064877
+  },
+  {
+   "seed": 1311,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18589458270856687,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": null,
+   "filter_active_percent": 0.0
+  },
+  {
+   "seed": 1312,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21850295559222682,
+   "rl_event_time": 4.75,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 3.1847133757961785
+  },
+  {
+   "seed": 1313,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09608777043035402,
+   "rl_event_time": 4.229166666666674,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 0.44943820224719105
+  },
+  {
+   "seed": 1314,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20787686423396357,
+   "rl_event_time": 4.416666666666671,
+   "first_intervention": 0.8333333333333337,
+   "filter_active_percent": 4.761904761904762
+  },
+  {
+   "seed": 1315,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24253075149542874,
+   "rl_event_time": 10.645833333333362,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 16.765285996055226
+  },
+  {
+   "seed": 1316,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2559512098830545,
+   "rl_event_time": 2.833333333333336,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.368421052631579
+  },
+  {
+   "seed": 1317,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.22902434035999308,
+   "rl_event_time": 5.854166666666651,
+   "first_intervention": 0.0625,
+   "filter_active_percent": 8.93970893970894
+  },
+  {
+   "seed": 1318,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20152715194101298,
+   "rl_event_time": 3.0208333333333375,
+   "first_intervention": 0.3958333333333332,
+   "filter_active_percent": 3.3419023136246784
+  },
+  {
+   "seed": 1319,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1482780391006917,
+   "rl_event_time": 3.9375000000000107,
+   "first_intervention": 0.25,
+   "filter_active_percent": 3.8724373576309796
+  },
+  {
+   "seed": 1320,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.23881083675535467,
+   "rl_event_time": 4.166666666666675,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.008908685968819
+  },
+  {
+   "seed": 1321,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06019834229263356,
+   "rl_event_time": 3.125000000000005,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 1.7902813299232736
+  },
+  {
+   "seed": 1322,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1066877716142518,
+   "rl_event_time": 4.937499999999997,
+   "first_intervention": 1.6874999999999982,
+   "filter_active_percent": 4.444444444444445
+  },
+  {
+   "seed": 1323,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0596165477758821,
+   "rl_event_time": 3.041666666666671,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.940874035989718
+  },
+  {
+   "seed": 1324,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20094962492993174,
+   "rl_event_time": 4.229166666666674,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 0.91324200913242
+  },
+  {
+   "seed": 1325,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09846972285452785,
+   "rl_event_time": 3.000000000000004,
+   "first_intervention": 0.3749999999999999,
+   "filter_active_percent": 1.3020833333333335
+  },
+  {
+   "seed": 1326,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.030864571504717844,
+   "rl_event_time": 3.4166666666666736,
+   "first_intervention": 0.2708333333333333,
+   "filter_active_percent": 0.24691358024691357
+  },
+  {
+   "seed": 1327,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20301089299735436,
+   "rl_event_time": 2.9375000000000036,
+   "first_intervention": 1.2083333333333333,
+   "filter_active_percent": 2.083333333333333
+  },
+  {
+   "seed": 1328,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.02944156525144659,
+   "rl_event_time": 3.520833333333341,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.70935960591133
+  },
+  {
+   "seed": 1329,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16791544309401732,
+   "rl_event_time": 2.8958333333333366,
+   "first_intervention": 0.25,
+   "filter_active_percent": 3.733333333333334
+  },
+  {
+   "seed": 1330,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.25856829405679915,
+   "rl_event_time": 4.354166666666672,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 11.421911421911423
+  },
+  {
+   "seed": 1331,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22762661087306904,
+   "rl_event_time": 4.5000000000000036,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 1.9438444924406046
+  },
+  {
+   "seed": 1332,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17934008117220962,
+   "rl_event_time": 3.7083333333333424,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 3.218390804597701
+  },
+  {
+   "seed": 1333,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14117149029852702,
+   "rl_event_time": 3.916666666666677,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 6.852248394004283
+  },
+  {
+   "seed": 1334,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.02017253533579333,
+   "rl_event_time": 5.91666666666665,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 9.019607843137255
+  },
+  {
+   "seed": 1335,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17704653092959657,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.730769230769231
+  },
+  {
+   "seed": 1336,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10525148848699896,
+   "rl_event_time": 3.645833333333342,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.9719626168224296
+  },
+  {
+   "seed": 1337,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06649559896773263,
+   "rl_event_time": 4.708333333333334,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 3.375527426160337
+  },
+  {
+   "seed": 1338,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18396673035235656,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 1.256281407035176
+  },
+  {
+   "seed": 1339,
+   "rl": "unfinished",
+   "filter": "unfinished",
+   "category": "not rescued",
+   "mass": 0.10189825023088381,
+   "rl_event_time": 24.99999999999967,
+   "first_intervention": 0.625,
+   "filter_active_percent": 0.4166666666666667
+  },
+  {
+   "seed": 1340,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15872286991022033,
+   "rl_event_time": 4.354166666666672,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.262443438914027
+  },
+  {
+   "seed": 1341,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0386335868185994,
+   "rl_event_time": 3.5833333333333415,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 2.380952380952381
+  },
+  {
+   "seed": 1342,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20809388825497696,
+   "rl_event_time": 2.9375000000000036,
+   "first_intervention": 0.2708333333333333,
+   "filter_active_percent": 1.0471204188481675
+  },
+  {
+   "seed": 1343,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20076802062678178,
+   "rl_event_time": 3.3333333333333397,
+   "first_intervention": 1.5416666666666654,
+   "filter_active_percent": 3.217821782178218
+  },
+  {
+   "seed": 1344,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09617605383037602,
+   "rl_event_time": 3.4583333333333406,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 0.975609756097561
+  },
+  {
+   "seed": 1345,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14348260976868424,
+   "rl_event_time": 2.7291666666666687,
+   "first_intervention": 1.3958333333333326,
+   "filter_active_percent": 0.5376344086021506
+  },
+  {
+   "seed": 1346,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1814991814220044,
+   "rl_event_time": 3.8958333333333437,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 0.9345794392523363
+  },
+  {
+   "seed": 1347,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12368674807643609,
+   "rl_event_time": 4.250000000000007,
+   "first_intervention": 1.6458333333333317,
+   "filter_active_percent": 3.3557046979865772
+  },
+  {
+   "seed": 1348,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09676692638094325,
+   "rl_event_time": 2.9791666666666705,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 3.5897435897435894
+  },
+  {
+   "seed": 1349,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0751001782669325,
+   "rl_event_time": 3.770833333333343,
+   "first_intervention": 0.45833333333333315,
+   "filter_active_percent": 3.51288056206089
+  },
+  {
+   "seed": 1350,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08028154574707401,
+   "rl_event_time": 4.562500000000003,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.141327623126338
+  },
+  {
+   "seed": 1351,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14250099550886347,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 2.5510204081632653
+  },
+  {
+   "seed": 1352,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08240447703887141,
+   "rl_event_time": 3.479166666666674,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 9.90783410138249
+  },
+  {
+   "seed": 1353,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0839672675192167,
+   "rl_event_time": 2.8125000000000027,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.439153439153439
+  },
+  {
+   "seed": 1354,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16742661986188181,
+   "rl_event_time": 2.5833333333333344,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.9337016574585635
+  },
+  {
+   "seed": 1355,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05555060140550531,
+   "rl_event_time": 3.041666666666671,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.0690537084398977
+  },
+  {
+   "seed": 1356,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07808287485729318,
+   "rl_event_time": 3.6250000000000084,
+   "first_intervention": 1.8749999999999976,
+   "filter_active_percent": 0.9592326139088728
+  },
+  {
+   "seed": 1357,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1487206915566464,
+   "rl_event_time": 4.416666666666671,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.463203463203463
+  },
+  {
+   "seed": 1358,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1553760890509,
+   "rl_event_time": 3.208333333333339,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 3.7128712871287126
+  },
+  {
+   "seed": 1359,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08589213744979958,
+   "rl_event_time": 3.6666666666666754,
+   "first_intervention": 1.6041666666666652,
+   "filter_active_percent": 4.491725768321513
+  },
+  {
+   "seed": 1360,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09599041187475003,
+   "rl_event_time": 4.125000000000009,
+   "first_intervention": 0.3541666666666666,
+   "filter_active_percent": 1.8306636155606408
+  },
+  {
+   "seed": 1361,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21127612213682978,
+   "rl_event_time": 2.9791666666666705,
+   "first_intervention": 1.4791666666666656,
+   "filter_active_percent": 1.0416666666666665
+  },
+  {
+   "seed": 1362,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.25935835512848665,
+   "rl_event_time": 3.208333333333339,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 10.964912280701753
+  },
+  {
+   "seed": 1363,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18473213411256045,
+   "rl_event_time": 3.000000000000004,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.8276762402088773
+  },
+  {
+   "seed": 1364,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18539096470553745,
+   "rl_event_time": 3.916666666666677,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 0.4694835680751174
+  },
+  {
+   "seed": 1365,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20001648405955194,
+   "rl_event_time": 2.5416666666666674,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.0
+  },
+  {
+   "seed": 1366,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1436237992558146,
+   "rl_event_time": 3.4166666666666736,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 0.24509803921568626
+  },
+  {
+   "seed": 1367,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21617827315842467,
+   "rl_event_time": 4.520833333333337,
+   "first_intervention": 1.6249999999999984,
+   "filter_active_percent": 4.094827586206897
+  },
+  {
+   "seed": 1368,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.23442595835609895,
+   "rl_event_time": 4.312500000000006,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 10.114192495921696
+  },
+  {
+   "seed": 1369,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06293671015647197,
+   "rl_event_time": 3.7083333333333424,
+   "first_intervention": 0.8333333333333337,
+   "filter_active_percent": 4.285714285714286
+  },
+  {
+   "seed": 1370,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17202252660085862,
+   "rl_event_time": 2.395833333333333,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.2346368715083798
+  },
+  {
+   "seed": 1371,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.179745297098828,
+   "rl_event_time": 4.06250000000001,
+   "first_intervention": 1.3958333333333326,
+   "filter_active_percent": 1.6091954022988506
+  },
+  {
+   "seed": 1372,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08758844141576973,
+   "rl_event_time": 3.208333333333339,
+   "first_intervention": 0.8125000000000003,
+   "filter_active_percent": 1.8134715025906734
+  },
+  {
+   "seed": 1373,
+   "rl": "success",
+   "filter": "stability",
+   "category": "broken",
+   "mass": 0.25709278016918924,
+   "rl_event_time": 6.7291666666666385,
+   "first_intervention": 1.3958333333333326,
+   "filter_active_percent": 25.964912280701753
+  },
+  {
+   "seed": 1374,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.25930229667116605,
+   "rl_event_time": 2.791666666666669,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 1.3020833333333335
+  },
+  {
+   "seed": 1375,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.024372178917510777,
+   "rl_event_time": 2.8125000000000027,
+   "first_intervention": 1.5208333333333321,
+   "filter_active_percent": 5.2356020942408374
+  },
+  {
+   "seed": 1376,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04891193935277597,
+   "rl_event_time": 4.520833333333337,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.3186813186813187
+  },
+  {
+   "seed": 1377,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07580488642402307,
+   "rl_event_time": 2.875000000000003,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.439153439153439
+  },
+  {
+   "seed": 1378,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19575181289640345,
+   "rl_event_time": 4.625000000000002,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.3043478260869565
+  },
+  {
+   "seed": 1379,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2082321815552402,
+   "rl_event_time": 3.8333333333333433,
+   "first_intervention": 1.6249999999999984,
+   "filter_active_percent": 4.460093896713615
+  },
+  {
+   "seed": 1380,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15353045464321297,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 0.43749999999999983,
+   "filter_active_percent": 2.9268292682926833
+  },
+  {
+   "seed": 1381,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11139799681328498,
+   "rl_event_time": 3.5000000000000075,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 3.0952380952380953
+  },
+  {
+   "seed": 1382,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.10432217440057515,
+   "rl_event_time": 3.479166666666674,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 3.3816425120772946
+  },
+  {
+   "seed": 1383,
+   "rl": "stability",
+   "filter": "stability",
+   "category": "not rescued",
+   "mass": 0.24274889510725023,
+   "rl_event_time": 7.749999999999957,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 23.204419889502763
+  },
+  {
+   "seed": 1384,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.24571473405705124,
+   "rl_event_time": 6.979166666666635,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 14.762741652021088
+  },
+  {
+   "seed": 1385,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19160544653467657,
+   "rl_event_time": 4.166666666666675,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.696629213483146
+  },
+  {
+   "seed": 1386,
+   "rl": "payload",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.24949847470150055,
+   "rl_event_time": 5.395833333333324,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.451612903225806
+  },
+  {
+   "seed": 1387,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.051996290142912786,
+   "rl_event_time": 4.041666666666677,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 1.3793103448275863
+  },
+  {
+   "seed": 1388,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12009734894504161,
+   "rl_event_time": 3.1041666666666714,
+   "first_intervention": 2.4583333333333335,
+   "filter_active_percent": 0.7692307692307693
+  },
+  {
+   "seed": 1389,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09565966754866041,
+   "rl_event_time": 4.145833333333342,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 5.066079295154185
+  },
+  {
+   "seed": 1390,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11228287017041105,
+   "rl_event_time": 4.791666666666666,
+   "first_intervention": 0.6875000000000001,
+   "filter_active_percent": 8.316430020283976
+  },
+  {
+   "seed": 1391,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04570211425502934,
+   "rl_event_time": 4.145833333333342,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 1.1312217194570136
+  },
+  {
+   "seed": 1392,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.12721837515944814,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.176904176904177
+  },
+  {
+   "seed": 1393,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05103659462565079,
+   "rl_event_time": 4.208333333333341,
+   "first_intervention": 0.3541666666666666,
+   "filter_active_percent": 2.6548672566371683
+  },
+  {
+   "seed": 1394,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.150182845998037,
+   "rl_event_time": 5.187499999999994,
+   "first_intervention": 0.5833333333333333,
+   "filter_active_percent": 1.7994858611825193
+  },
+  {
+   "seed": 1395,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1317223549927311,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.6666666666666667,
+   "filter_active_percent": 2.457002457002457
+  },
+  {
+   "seed": 1396,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.15040857395445623,
+   "rl_event_time": 4.708333333333334,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.0822510822510822
+  },
+  {
+   "seed": 1397,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04154905508475428,
+   "rl_event_time": 4.083333333333343,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 2.28310502283105
+  },
+  {
+   "seed": 1398,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08504007616734964,
+   "rl_event_time": 6.541666666666641,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 1.9148936170212765
+  },
+  {
+   "seed": 1399,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22355082803608775,
+   "rl_event_time": 4.5000000000000036,
+   "first_intervention": 0.6875000000000001,
+   "filter_active_percent": 4.710920770877944
+  },
+  {
+   "seed": 1400,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08347251037098505,
+   "rl_event_time": 4.687500000000001,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.6170212765957444
+  },
+  {
+   "seed": 1401,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05883631343447482,
+   "rl_event_time": 2.833333333333336,
+   "first_intervention": 1.270833333333333,
+   "filter_active_percent": 2.680965147453083
+  },
+  {
+   "seed": 1402,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22664986780328877,
+   "rl_event_time": 3.2708333333333393,
+   "first_intervention": 0.10416666666666666,
+   "filter_active_percent": 4.962779156327544
+  },
+  {
+   "seed": 1403,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07288945595345436,
+   "rl_event_time": 3.7500000000000093,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 1.4218009478672986
+  },
+  {
+   "seed": 1404,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11119956957478305,
+   "rl_event_time": 3.687500000000009,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 1.937046004842615
+  },
+  {
+   "seed": 1405,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04264729358092648,
+   "rl_event_time": 4.000000000000011,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.720823798627003
+  },
+  {
+   "seed": 1406,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07783598221300539,
+   "rl_event_time": 3.1875000000000053,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 1.7994858611825193
+  },
+  {
+   "seed": 1407,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1430896210705698,
+   "rl_event_time": 4.54166666666667,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 2.9535864978902953
+  },
+  {
+   "seed": 1408,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11607540749434374,
+   "rl_event_time": 4.604166666666669,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.613305613305614
+  },
+  {
+   "seed": 1409,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07638646000499191,
+   "rl_event_time": 4.375000000000005,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.5730337078651686
+  },
+  {
+   "seed": 1410,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14148002119834016,
+   "rl_event_time": 3.2291666666666723,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 4.030226700251889
+  },
+  {
+   "seed": 1411,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04383389154138522,
+   "rl_event_time": 2.750000000000002,
+   "first_intervention": 0.45833333333333315,
+   "filter_active_percent": 4.761904761904762
+  },
+  {
+   "seed": 1412,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06876634968625446,
+   "rl_event_time": 3.9375000000000107,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.639344262295082
+  },
+  {
+   "seed": 1413,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13247329261416838,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": 0.8541666666666671,
+   "filter_active_percent": 0.5012531328320802
+  },
+  {
+   "seed": 1414,
+   "rl": "success",
+   "filter": "stability",
+   "category": "broken",
+   "mass": 0.2534550487886852,
+   "rl_event_time": 4.75,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 25.32347504621072
+  },
+  {
+   "seed": 1415,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09872738594441799,
+   "rl_event_time": 2.4583333333333335,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.3707865168539324
+  },
+  {
+   "seed": 1416,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14219084707179686,
+   "rl_event_time": 4.291666666666673,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.1235955056179776
+  },
+  {
+   "seed": 1417,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.18736240518902975,
+   "rl_event_time": 3.5833333333333415,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 1.201923076923077
+  },
+  {
+   "seed": 1418,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16472155181693304,
+   "rl_event_time": 4.979166666666663,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.109704641350211
+  },
+  {
+   "seed": 1419,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07259403678352963,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 3.787878787878788
+  },
+  {
+   "seed": 1420,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.08928358082265157,
+   "rl_event_time": 4.583333333333336,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 0.8583690987124464
+  },
+  {
+   "seed": 1421,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14815214962809922,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 3.263403263403263
+  },
+  {
+   "seed": 1422,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.236095941158299,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 0.25,
+   "filter_active_percent": 2.1686746987951806
+  },
+  {
+   "seed": 1423,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.14619302307714063,
+   "rl_event_time": 4.104166666666676,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.0179372197309418
+  },
+  {
+   "seed": 1424,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.126603854735379,
+   "rl_event_time": 3.9791666666666776,
+   "first_intervention": 0.4999999999999998,
+   "filter_active_percent": 3.4324942791762014
+  },
+  {
+   "seed": 1425,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21220662786039493,
+   "rl_event_time": 3.9791666666666776,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.3953488372093024
+  },
+  {
+   "seed": 1426,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16562527001136407,
+   "rl_event_time": 4.4583333333333375,
+   "first_intervention": 0.4999999999999998,
+   "filter_active_percent": 1.9780219780219779
+  },
+  {
+   "seed": 1427,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.028230571089927416,
+   "rl_event_time": 2.604166666666668,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 2.6737967914438503
+  },
+  {
+   "seed": 1428,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.025475318921806434,
+   "rl_event_time": 4.583333333333336,
+   "first_intervention": 0.3958333333333332,
+   "filter_active_percent": 1.9522776572668112
+  },
+  {
+   "seed": 1429,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.21679468678593544,
+   "rl_event_time": 3.7500000000000093,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 5.275779376498801
+  },
+  {
+   "seed": 1430,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1827528309793151,
+   "rl_event_time": 3.208333333333339,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 1.0
+  },
+  {
+   "seed": 1431,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0529815668453306,
+   "rl_event_time": 3.0208333333333375,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 0.5181347150259068
+  },
+  {
+   "seed": 1432,
+   "rl": "stability",
+   "filter": "stability",
+   "category": "not rescued",
+   "mass": 0.2531826689796456,
+   "rl_event_time": 6.229166666666646,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 23.949579831932773
+  },
+  {
+   "seed": 1433,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.060390368278675756,
+   "rl_event_time": 3.437500000000007,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.694915254237288
+  },
+  {
+   "seed": 1434,
+   "rl": "success",
+   "filter": "payload",
+   "category": "broken",
+   "mass": 0.19566180536120548,
+   "rl_event_time": 3.479166666666674,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 3.833333333333333
+  },
+  {
+   "seed": 1435,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1298149537954851,
+   "rl_event_time": 2.9375000000000036,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.896103896103896
+  },
+  {
+   "seed": 1436,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16310330509910417,
+   "rl_event_time": 3.000000000000004,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 2.610966057441253
+  },
+  {
+   "seed": 1437,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19878932419164436,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 0.3958333333333332,
+   "filter_active_percent": 4.6568627450980395
+  },
+  {
+   "seed": 1438,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20061155408562972,
+   "rl_event_time": 3.770833333333343,
+   "first_intervention": 0.3749999999999999,
+   "filter_active_percent": 0.9411764705882352
+  },
+  {
+   "seed": 1439,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05894404300741438,
+   "rl_event_time": 3.8333333333333433,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 6.0402684563758395
+  },
+  {
+   "seed": 1440,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.20227894404841057,
+   "rl_event_time": 2.6875000000000018,
+   "first_intervention": 0.4166666666666665,
+   "filter_active_percent": 1.9021739130434785
+  },
+  {
+   "seed": 1441,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.05843630943286667,
+   "rl_event_time": 3.5000000000000075,
+   "first_intervention": 0.12499999999999999,
+   "filter_active_percent": 3.571428571428571
+  },
+  {
+   "seed": 1442,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09790239749460987,
+   "rl_event_time": 3.6666666666666754,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 5.011933174224343
+  },
+  {
+   "seed": 1443,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07541226917194525,
+   "rl_event_time": 4.354166666666672,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 3.2751091703056767
+  },
+  {
+   "seed": 1444,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09871636653057864,
+   "rl_event_time": 3.1875000000000053,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 3.535353535353535
+  },
+  {
+   "seed": 1445,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.23028997734209042,
+   "rl_event_time": 4.937499999999997,
+   "first_intervention": 0.45833333333333315,
+   "filter_active_percent": 0.4149377593360996
+  },
+  {
+   "seed": 1446,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17383466118291444,
+   "rl_event_time": 4.854166666666665,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 2.3060796645702304
+  },
+  {
+   "seed": 1447,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19552926382939492,
+   "rl_event_time": 4.187500000000008,
+   "first_intervention": 1.270833333333333,
+   "filter_active_percent": 0.672645739910314
+  },
+  {
+   "seed": 1448,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.23856200473964007,
+   "rl_event_time": 5.687499999999987,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.4482758620689653
+  },
+  {
+   "seed": 1449,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09758654002411882,
+   "rl_event_time": 2.7708333333333357,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.10079575596817
+  },
+  {
+   "seed": 1450,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17934639132681662,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.4390243902439024
+  },
+  {
+   "seed": 1451,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07351414098470956,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": null,
+   "filter_active_percent": 0.0
+  },
+  {
+   "seed": 1452,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.025029417861649937,
+   "rl_event_time": 3.0625000000000044,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 3.865979381443299
+  },
+  {
+   "seed": 1453,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.23017029015207002,
+   "rl_event_time": 2.958333333333337,
+   "first_intervention": 0.4999999999999998,
+   "filter_active_percent": 3.608247422680412
+  },
+  {
+   "seed": 1454,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11978107777751282,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.2594458438287155
+  },
+  {
+   "seed": 1455,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.25479412565417275,
+   "rl_event_time": 4.083333333333343,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 10.538116591928251
+  },
+  {
+   "seed": 1456,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.25832726356131097,
+   "rl_event_time": 4.395833333333338,
+   "first_intervention": 0.08333333333333333,
+   "filter_active_percent": 5.133928571428571
+  },
+  {
+   "seed": 1457,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1452049118998948,
+   "rl_event_time": 3.9375000000000107,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.570093457943925
+  },
+  {
+   "seed": 1458,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.026122991793017906,
+   "rl_event_time": 3.87500000000001,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 1.3888888888888888
+  },
+  {
+   "seed": 1459,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.20444600382908548,
+   "rl_event_time": 5.6041666666666545,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.9656019656019657
+  },
+  {
+   "seed": 1460,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.2550630586105546,
+   "rl_event_time": 6.041666666666648,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 10.774410774410773
+  },
+  {
+   "seed": 1461,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24619357093940172,
+   "rl_event_time": 5.812499999999985,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 3.296703296703297
+  },
+  {
+   "seed": 1462,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13812237130481977,
+   "rl_event_time": 2.7291666666666687,
+   "first_intervention": 0.3749999999999999,
+   "filter_active_percent": 4.289544235924933
+  },
+  {
+   "seed": 1463,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.027014841769643097,
+   "rl_event_time": 2.791666666666669,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 4.724409448818897
+  },
+  {
+   "seed": 1464,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.028786824743458256,
+   "rl_event_time": 4.229166666666674,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 7.910750507099391
+  },
+  {
+   "seed": 1465,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24091924836281878,
+   "rl_event_time": 3.2708333333333393,
+   "first_intervention": 1.7916666666666645,
+   "filter_active_percent": 6.388206388206388
+  },
+  {
+   "seed": 1466,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24563759777039368,
+   "rl_event_time": 4.000000000000011,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 9.153318077803203
+  },
+  {
+   "seed": 1467,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17770090155994134,
+   "rl_event_time": 3.1458333333333384,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.292929292929292
+  },
+  {
+   "seed": 1468,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09179508370710553,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.4962593516209477
+  },
+  {
+   "seed": 1469,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.1351651866108994,
+   "rl_event_time": 2.91666666666667,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 7.253886010362693
+  },
+  {
+   "seed": 1470,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13652293128146506,
+   "rl_event_time": 4.104166666666676,
+   "first_intervention": 0.7708333333333336,
+   "filter_active_percent": 2.277904328018223
+  },
+  {
+   "seed": 1471,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.24234303790512032,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 0.45833333333333315,
+   "filter_active_percent": 5.263157894736842
+  },
+  {
+   "seed": 1472,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.02734100820272386,
+   "rl_event_time": 2.6666666666666683,
+   "first_intervention": 0.7083333333333335,
+   "filter_active_percent": 6.349206349206349
+  },
+  {
+   "seed": 1473,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09878698208456858,
+   "rl_event_time": 4.583333333333336,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 0.8528784648187633
+  },
+  {
+   "seed": 1474,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.19099404191517314,
+   "rl_event_time": 3.916666666666677,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 20.855614973262032
+  },
+  {
+   "seed": 1475,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.055056227713360655,
+   "rl_event_time": 4.5000000000000036,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.772234273318872
+  },
+  {
+   "seed": 1476,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.04553798158825075,
+   "rl_event_time": 3.2500000000000058,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.0230179028132993
+  },
+  {
+   "seed": 1477,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07365229556056352,
+   "rl_event_time": 3.437500000000007,
+   "first_intervention": 0.2708333333333333,
+   "filter_active_percent": 4.842615012106537
+  },
+  {
+   "seed": 1478,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.03706263500847642,
+   "rl_event_time": 3.4583333333333406,
+   "first_intervention": 0.1875,
+   "filter_active_percent": 0.9779951100244498
+  },
+  {
+   "seed": 1479,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.054487941717886214,
+   "rl_event_time": 3.562500000000008,
+   "first_intervention": 0.22916666666666669,
+   "filter_active_percent": 2.3980815347721824
+  },
+  {
+   "seed": 1480,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.17072426183384123,
+   "rl_event_time": 4.06250000000001,
+   "first_intervention": 0.791666666666667,
+   "filter_active_percent": 4.697986577181208
+  },
+  {
+   "seed": 1481,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.042636438526792386,
+   "rl_event_time": 3.8541666666666767,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 1.1764705882352942
+  },
+  {
+   "seed": 1482,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.028664183187182737,
+   "rl_event_time": 3.312500000000006,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 4.738154613466334
+  },
+  {
+   "seed": 1483,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06780671670510638,
+   "rl_event_time": 3.562500000000008,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 2.158273381294964
+  },
+  {
+   "seed": 1484,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.09691946697277103,
+   "rl_event_time": 4.4583333333333375,
+   "first_intervention": 0.6041666666666666,
+   "filter_active_percent": 1.5486725663716814
+  },
+  {
+   "seed": 1485,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.11023397895090162,
+   "rl_event_time": 3.000000000000004,
+   "first_intervention": 1.1666666666666667,
+   "filter_active_percent": 3.3333333333333335
+  },
+  {
+   "seed": 1486,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.25450764952361266,
+   "rl_event_time": 5.083333333333329,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 13.88888888888889
+  },
+  {
+   "seed": 1487,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16526704856735772,
+   "rl_event_time": 3.166666666666672,
+   "first_intervention": 1.4583333333333324,
+   "filter_active_percent": 1.5151515151515151
+  },
+  {
+   "seed": 1488,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.06623975096346911,
+   "rl_event_time": 3.166666666666672,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 2.0460358056265986
+  },
+  {
+   "seed": 1489,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.22988087078545041,
+   "rl_event_time": 3.7916666666666763,
+   "first_intervention": 0.31249999999999994,
+   "filter_active_percent": 2.843601895734597
+  },
+  {
+   "seed": 1490,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07088874171630839,
+   "rl_event_time": 4.166666666666675,
+   "first_intervention": 0.29166666666666663,
+   "filter_active_percent": 4.464285714285714
+  },
+  {
+   "seed": 1491,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.0264709358349806,
+   "rl_event_time": 2.8958333333333366,
+   "first_intervention": 0.20833333333333334,
+   "filter_active_percent": 2.33160621761658
+  },
+  {
+   "seed": 1492,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.13361420484941028,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 1.4374999999999991,
+   "filter_active_percent": 3.1553398058252426
+  },
+  {
+   "seed": 1493,
+   "rl": "stability",
+   "filter": "success",
+   "category": "rescued",
+   "mass": 0.25199829819379016,
+   "rl_event_time": 9.229166666666655,
+   "first_intervention": 0.041666666666666664,
+   "filter_active_percent": 6.708595387840671
+  },
+  {
+   "seed": 1494,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.23611572626744712,
+   "rl_event_time": 3.562500000000008,
+   "first_intervention": 0.16666666666666666,
+   "filter_active_percent": 3.255813953488372
+  },
+  {
+   "seed": 1495,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.2134313445139593,
+   "rl_event_time": 3.5416666666666745,
+   "first_intervention": 1.5416666666666654,
+   "filter_active_percent": 0.24271844660194172
+  },
+  {
+   "seed": 1496,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.07601352971016223,
+   "rl_event_time": 3.208333333333339,
+   "first_intervention": 0.14583333333333331,
+   "filter_active_percent": 0.25510204081632654
+  },
+  {
+   "seed": 1497,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.160376241503819,
+   "rl_event_time": 3.729166666666676,
+   "first_intervention": 0.4166666666666665,
+   "filter_active_percent": 1.6706443914081146
+  },
+  {
+   "seed": 1498,
+   "rl": "stability",
+   "filter": "stability",
+   "category": "not rescued",
+   "mass": 0.25210516587735,
+   "rl_event_time": 10.020833333333345,
+   "first_intervention": 0.7500000000000002,
+   "filter_active_percent": 31.53153153153153
+  },
+  {
+   "seed": 1499,
+   "rl": "success",
+   "filter": "success",
+   "category": "kept",
+   "mass": 0.16403682167565917,
+   "rl_event_time": 3.3750000000000067,
+   "first_intervention": 0.7291666666666669,
+   "filter_active_percent": 2.2388059701492535
+  }
+ ],
+ "pair_counts": {
+  "kept": 461,
+  "rescued": 23,
+  "not rescued": 9,
+  "broken": 7
+ }
+}

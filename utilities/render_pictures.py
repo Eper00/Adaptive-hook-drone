@@ -1,5 +1,5 @@
 """Render still pictures of the hook drone, with and without the payload, of
-the payload alone and of a whole scene (saved to pictures/ as png, and the
+the payload alone and of a whole scene (saved to results/thesis_figures/ as png, and the
 same image converted to pdf).
 
     python utilities/render_pictures.py
@@ -14,7 +14,7 @@ from multi_drone_mujoco.envs.adaptive_hook_director_velocity import AdaptiveTran
 from multi_drone_mujoco.envs.adaptive_hook_transport import AdaptiveTransportAviary
 from multi_drone_mujoco.envs.waypoint_mpc import WaypointMPCAgent
 
-OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "pictures")
+OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "results", "thesis_figures")
 WIDTH, HEIGHT = 1600, 1200
 
 PAYLOAD_GEOMS = ["target_geom", "left_connector_geom", "right_connector_geom", "holder_plate"]

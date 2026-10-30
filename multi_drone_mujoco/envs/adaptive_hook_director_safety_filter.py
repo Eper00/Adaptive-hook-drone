@@ -15,9 +15,6 @@ loop: the ResNet model x_k+1 = x_k + f(x_k, u_k) of resnet_mpc.py.
     (or the connectors / holder plate at any time) and the drone starts to
     tilt, the hook is being levered: the filter makes the drone climb off the
     contact before it flips                                      ["contact"],
-  * optionally (off by default), a command that would change the filtered
-    velocity reference faster than ``max_ref_accel`` per axis is clipped to
-    that rate (also abrupt jumps / reversals of the raw command)      ["rate"],
   * if the drone stalls (its position changes by less than
     ``stall_distance`` over ``stall_time`` while it is more than
     ``waypoint_tolerance`` from the active waypoint), a director MPC takes
@@ -27,7 +24,7 @@ loop: the ResNet model x_k+1 = x_k + f(x_k, u_k) of resnet_mpc.py.
     the stall window then starts again                           ["stall"].
 
 ``info`` of every step reports ``safety_intervened``, ``safety_reason``
-("none" / "constraint" / "rate" / "stall" / "contact"), ``u_rl`` (proposed),
+("none" / "constraint" / "stall" / "contact"), ``u_rl`` (proposed),
 ``u_applied`` (sent to the system), ``safety_slack``, ``hook_contact`` and
 ``payload_attached``.
 """
@@ -47,6 +44,8 @@ from multi_drone_mujoco.envs.predictive_safety_filter import (
 )
 from multi_drone_mujoco.envs.resnet_mpc import MODEL_FILE, ResNetMPC, load_or_train
 
+# "rate" (a former command-change limit) is kept so that the reason indices
+# of utilities/analyse.py stay the same
 REASONS = ("none", "constraint", "rate", "stall", "contact")
 FILTER_HORIZON = 20             # 0.42 s, also the horizon of the takeover MPC
 
@@ -61,13 +60,10 @@ class AdaptiveTransportDirectorAviarySafetyFilter(AdaptiveTransportDirectorAviar
         super().__init__(*args, **kwargs)
         models = load_or_train(model_file or MODEL_FILE)
         # director MPC (same model) that takes over when the controller stalls
-        # no velocity-offset estimate: the model is used as identified (as in waypoint_mpc.py)
-        self.takeover_mpc = ResNetMPC(models, horizon=filter_horizon, u_max=U_MAX,
-                                      disturbance_gain=0.0)
+        self.takeover_mpc = ResNetMPC(models, horizon=filter_horizon, u_max=U_MAX)
         self.safety_filter = PredictiveSafetyFilter(models, horizon=filter_horizon,
                                                     constraints=constraints or SafetyConstraints(),
-                                                    dt=self.CTRL_TIMESTEP, alpha=self.alpha,
-                                                    disturbance_gain=0.0)
+                                                    dt=self.CTRL_TIMESTEP)
         self.stall_distance = stall_distance
         self.stall_time = stall_time
         self.waypoint_tolerance = waypoint_tolerance
@@ -147,11 +143,9 @@ class AdaptiveTransportDirectorAviarySafetyFilter(AdaptiveTransportDirectorAviar
         proposal = self._takeover_command(mode, x) if self._takeover is not None else u_rl
         u, finfo = self.safety_filter.filter(mode, x, proposal, self._u_prev, contact=contact)
         reason = finfo["reason"]
-        if self._takeover is not None:
-            # keep the takeover MPC's offset estimate consistent with what was applied
-            self.takeover_mpc._last = (mode, x.copy(), np.asarray(u, float).copy())
-            if reason != "contact":
-                reason = "stall"
+        # during a takeover the MPC proposes the command (the escape still wins)
+        if self._takeover is not None and reason != "contact":
+            reason = "stall"
         intervened = reason != "none"
         action[0:3] = u
         self._u_prev = u

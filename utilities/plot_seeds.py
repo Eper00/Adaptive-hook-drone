@@ -39,7 +39,7 @@ Usage
 -----
     python -m utilities.plot_seeds --preset cl
     python -m utilities.plot_seeds --preset director
-    python -m utilities.plot_seeds --preset cl --overlay --out results/thesis_figures   # thesis Fig. 3.1
+    python -m utilities.plot_seeds --preset cl --overlay   # thesis Fig. 3.1
     python -m utilities.plot_seeds --group "flat=results/seeds/transport_s*_curriculum" \\
         --group "director=results/seeds/director_s*_curriculum" --name my_plot
 """
@@ -57,7 +57,7 @@ from utilities.plot_curriculum_training import (ROOT, TRANSPORT_LEVELS, pick_eve
                                                 smooth)
 
 SEEDS = os.path.join(ROOT, "results", "seeds")
-DEFAULT_OUT = os.path.join(ROOT, "results", "analysis", "seeds")
+DEFAULT_OUT = os.path.join(ROOT, "results", "thesis_figures")
 COLORS = ["tab:blue", "tab:green", "tab:orange", "tab:purple"]
 
 

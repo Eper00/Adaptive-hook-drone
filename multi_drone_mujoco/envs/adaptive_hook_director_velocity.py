@@ -133,9 +133,7 @@ class AdaptiveTransportDirectorAviary(AdaptiveTransportAviary):
 
     # The reward is the transport task's reward (inherited, no extra term), so
     # the director and the transport policy are trained and compared on the
-    # same reward. (results/final/rl_adaptive_director_curriculum was trained
-    # with an extra -0.25 * sum(action[0:3]**2), action[0:3] being the first
-    # three motor commands.)
+    # same reward.
 
 
     def _get_low_level_obs(self, target_vel, target_orientation):

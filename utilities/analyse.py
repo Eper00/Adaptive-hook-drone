@@ -1053,8 +1053,9 @@ def plot_comparison(results, out):
         "Max tilt per episode", "[deg]", (np.degrees(lim.max_tilt),))
     box(axs[1, 1], per_episode(lambda ep: np.degrees(np.abs(ep["swing"]).max())),
         "Max payload swing per episode", "[deg]", (np.degrees(lim.max_swing),))
-    box(axs[1, 2], per_episode(lambda ep: np.mean(np.linalg.norm(np.diff(ep["cmd"], axis=0), axis=1)) * 48),
-        "Command roughness: mean |d cmd / dt|", "[m/s^2]")
+    box(axs[1, 2], per_episode(lambda ep: np.mean(np.linalg.norm(np.diff(ep["cmd_filtered"], axis=0),
+                                                                axis=1)) * 48),
+        "Command roughness: mean |d c / dt| (filtered command)", "[m/s^2]")
     for a in axs.ravel():
         a.grid(alpha=0.3)
     fig.suptitle("RL director vs director MPC vs RL + MPC safety filter (dotted: filter constraints)")
@@ -1163,7 +1164,9 @@ def episode_metrics(ep):
             "max_tilt_deg": float(tilt.max()),
             "max_speed": float(np.linalg.norm(ep["v"], axis=1).max()),
             "max_swing_deg": float(np.degrees(np.abs(ep["swing"]).max())),
-            "command_roughness": float(np.mean(np.linalg.norm(np.diff(ep["cmd"], axis=0), axis=1)) * 48),
+            # of the low-pass filtered command (what the velocity controller tracks)
+            "command_roughness": float(np.mean(np.linalg.norm(np.diff(ep["cmd_filtered"], axis=0),
+                                                              axis=1)) * 48),
             "filter_active_percent": float(100 * ep["intervened"].mean())}
 
 
@@ -1202,7 +1205,8 @@ def scenario_test(args):
     files = [os.path.join(out, "scenario.json"), os.path.join(out, "results.json")]
     files += plot_scenario(results, scenario, out)
     if args.video:
-        files += render_scenario_video(results, scenario, out, width=args.video_width)
+        files += render_scenario_video(results, scenario, out, width=args.video_width,
+                                       camera=args.video_camera)
     for f in files:
         print("saved:", f)
 
@@ -1336,9 +1340,11 @@ def _label(frame, lines, color=(255, 255, 255)):
     return np.asarray(img)
 
 
-def render_scenario_video(results, scenario, out, width=640, every=2):
+def render_scenario_video(results, scenario, out, width=640, every=2, camera=None):
     """Replay the logged runs offscreen: one mp4 per method and a side-by-side
-    comparison (same fixed camera, overlays as in the live viewer)."""
+    comparison (same fixed camera, overlays as in the live viewer).
+    ``camera``: (lookat x, y, z, distance, azimuth, elevation); default:
+    framed on the start, the payload and the goal."""
     height = int(width * 0.75) // 2 * 2
     width = width // 2 * 2
     env = make_director_env(False)
@@ -1353,6 +1359,9 @@ def render_scenario_video(results, scenario, out, width=640, every=2):
     cam.lookat[:] = [*pts[:, :2].mean(0), 0.6]
     cam.distance = 0.9 + 0.95 * float(np.ptp(pts[:, :2], axis=0).max())
     cam.azimuth, cam.elevation = 135.0, -22.0
+    if camera is not None:
+        cam.lookat[:], cam.distance = camera[0:3], camera[3]
+        cam.azimuth, cam.elevation = camera[4], camera[5]
     fps = int(round(48 / every))
     kinds = list(results)
     writers = {k: _Ffmpeg(os.path.join(out, f"video_{k}.mp4"), width, height, fps) for k in kinds}
@@ -1427,6 +1436,9 @@ def main():
     g.add_argument("--video", action="store_true",
                    help="render mp4 videos (per method + side by side) offscreen")
     g.add_argument("--video_width", type=int, default=640)
+    g.add_argument("--video_camera", type=float, nargs=6, default=None,
+                   metavar=("X", "Y", "Z", "DIST", "AZ", "EL"),
+                   help="video camera: look-at point, distance, azimuth, elevation [deg]")
     g.add_argument("--tag", default=None, help="output folder name (default seed_<seed>)")
     args = parser.parse_args()
 

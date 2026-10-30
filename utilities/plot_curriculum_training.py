@@ -33,7 +33,7 @@ from tensorboard.backend.event_processing.event_accumulator import EventAccumula
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_RUN = os.path.join(ROOT, "results", "final", "rl_adaptive_velocity_curriculum")
-DEFAULT_OUT = os.path.join(ROOT, "results", "analysis", "curriculum")
+DEFAULT_OUT = os.path.join(ROOT, "results", "thesis_figures")
 
 # per environment: threshold_advance of its CurriculumConfig preset and the
 # levels of adjust_difficulty (utilities/learn.py)

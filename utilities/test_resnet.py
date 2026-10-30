@@ -47,9 +47,58 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from utilities.plot_identification import (C_INK, C_INK2, DEG, GROUPS, HMAX, HORIZONS, errors,
-                                           rmse, save, style)
-from utilities.validate_resnet import C_AQUA, C_BLUE, C_ORANGE, DT, windows
+DT = 1.0 / 48.0
+C_BLUE, C_ORANGE, C_AQUA = "#2a78d6", "#eb6834", "#1baf7a"
+C_INK, C_INK2 = "#0b0b0b", "#52514e"
+HORIZONS = (12, 24, 48)                      # look-ahead [steps]: 0.25 / 0.5 / 1 s
+HMAX = max(HORIZONS)
+DEG = np.degrees(1.0)
+ANGLES = (13, 14, 15)                        # roll_w, pitch_w, yaw (wrapped differences)
+# (title, unit, scale, [(state index, label)]) of the error groups
+GROUPS = [("Position", "cm", 100, [(0, "$p_x$"), (1, "$p_y$"), (2, "$p_z$")]),
+          ("Velocity", "cm/s", 100, [(3, "$v_x$"), (4, "$v_y$"), (5, "$v_z$")]),
+          ("Orientation", "deg", DEG, [(13, r"$\tilde{\phi}$"), (14, r"$\tilde{\theta}$"),
+                                       (15, r"$\psi$")])]
+
+
+def windows(run, mode, H, stride):
+    """Start steps of H-step windows that stay in one mode and are valid (no
+    hook-payload contact before the lift, tilt below 60 deg)."""
+    att = run["attached"].astype(bool)
+    ok = (att == bool(mode)) & run["valid"].astype(bool)
+    return [k for k in range(1, len(att) - H, stride) if ok[k:k + H + 1].all()]
+
+
+def errors(pred, true, i, scale):
+    """Prediction errors of state i at every look-ahead (n, HMAX+1), in display units."""
+    e = pred[:, :, i] - true[:, :, i]
+    if i in ANGLES:
+        e = (e + np.pi) % (2 * np.pi) - np.pi
+    return e * scale
+
+
+def rmse(e, mask=None):
+    e = e if mask is None else e[mask]
+    return float(np.sqrt(np.mean(e ** 2))) if len(e) else np.nan
+
+
+def style(font):
+    plt.rcParams.update({
+        "font.size": font, "axes.titlesize": font + 1, "axes.labelsize": font,
+        "xtick.labelsize": font - 2, "ytick.labelsize": font - 2, "legend.fontsize": font - 3,
+        "axes.edgecolor": C_INK2, "axes.labelcolor": C_INK, "text.color": C_INK,
+        "xtick.color": C_INK2, "ytick.color": C_INK2, "axes.spines.top": False,
+        "axes.spines.right": False, "grid.color": "#e4e3df", "grid.linewidth": 1.0,
+    })
+
+
+def save(fig, out, name):
+    """png (300 dpi) and pdf."""
+    for ext, kw in (("png", dict(dpi=300)), ("pdf", {})):
+        path = os.path.join(out, f"{name}.{ext}")
+        fig.savefig(path, bbox_inches="tight", **kw)
+        print("saved", path)
+    plt.close(fig)
 
 # one categorical colour per look-ahead (0.25 / 0.5 / 1 s), distinct from the black simulation
 H_COLORS = (C_BLUE, C_ORANGE, C_AQUA)
@@ -329,7 +378,9 @@ def main():
     p.add_argument("--reuse", action="store_true", help="reuse the cached test flights")
     p.add_argument("--resnet", default=None, help="ResNet model file")
     p.add_argument("--stride", type=int, default=2, help="window stride [steps]")
-    p.add_argument("--out", default="results/analysis/identification")
+    p.add_argument("--out", default="results/analysis/identification",
+                   help="cached test flights and the csv tables")
+    p.add_argument("--fig_out", default="results/thesis_figures", help="figures")
     p.add_argument("--font", type=float, default=32)
     args = p.parse_args()
 
@@ -358,12 +409,13 @@ def main():
     style(args.font)
     summary = summary_rows(err)
     write_csv(summary, os.path.join(args.out, "resnet_test_summary.csv"))
-    write_csv(plot_error_vs_mass(err, runs, args.out), os.path.join(args.out, "resnet_error_vs_mass.csv"))
+    os.makedirs(args.fig_out, exist_ok=True)
+    write_csv(plot_error_vs_mass(err, runs, args.fig_out), os.path.join(args.out, "resnet_error_vs_mass.csv"))
     # time series: the flight closest to the middle of the mass range
     mid = np.median([r["mass"] for r in runs])
     run = min(runs, key=lambda r: abs(r["mass"] - mid))
-    plot_timeseries(models, run, 0, args.out, "resnet_timeseries_no_payload")
-    plot_timeseries(models, run, 1, args.out, "resnet_timeseries_payload")
+    plot_timeseries(models, run, 0, args.fig_out, "resnet_timeseries_no_payload")
+    plot_timeseries(models, run, 1, args.fig_out, "resnet_timeseries_payload")
     print("\nRMS error (0.25 / 0.5 / 1 s):")
     for r in summary:
         print(f"  {r['mode']:10s} {r['state']:12s} " + " / ".join(f"{r[f'rmse_{h * DT:g}s']:.2f}" for h in HORIZONS)

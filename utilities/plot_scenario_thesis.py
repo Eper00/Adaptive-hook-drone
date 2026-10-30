@@ -2,7 +2,7 @@
 
 Reads the episodes saved by
 
-    python -m utilities.analyse --test scenario --seed 83 --max_time 25
+    python -m utilities.analyse --test scenario --seed 1290 --max_time 25
 
 and draws the top view of the paths (left) and the distance to the goal and
 the tilt over time (right), with the outcome rule of analyse.classify: an
@@ -14,7 +14,7 @@ hold window, or the failure), since what happens later does not count.
 
 Usage:
     python -m utilities.plot_scenario_thesis
-    python -m utilities.plot_scenario_thesis --run results/analysis/scenario/seed_83 --out fig.png
+    python -m utilities.plot_scenario_thesis --run results/analysis/scenario/seed_1290 --out fig.png
 """
 
 import argparse
@@ -35,7 +35,7 @@ def tilt_deg(ep):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("--run", default="results/analysis/scenario/seed_83")
+    p.add_argument("--run", default="results/analysis/scenario/seed_1290")
     p.add_argument("--out", default=None, help="default: results/thesis_figures/scenario_seed<seed>.png")
     p.add_argument("--font", type=float, default=19)
     a = p.parse_args()
@@ -127,6 +127,7 @@ def main():
     fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, 0.02), ncol=5, frameon=False, columnspacing=1.2, handletextpad=0.4)
     out = a.out or os.path.join("results", "thesis_figures", f"scenario_seed{sc['seed']}.png")
     fig.savefig(out, dpi=200, bbox_inches="tight")
+    fig.savefig(os.path.splitext(out)[0] + ".pdf", bbox_inches="tight")   # vector version
     print("saved:", out)
 
 

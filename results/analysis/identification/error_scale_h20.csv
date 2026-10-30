@@ -1,0 +1,15 @@
+flights,mode,quantity,unit,typical_p95,change_rms,error_rms,relative_pct,windows
+test,no payload,position,cm,,14.48,0.61,4.2,29012
+test,no payload,velocity,cm/s,66.01,29.39,2.15,7.3,29012
+test,no payload,tilt,deg,9.31,5.48,0.43,7.9,29012
+test,payload,position,cm,,12.37,0.9,7.3,23400
+test,payload,velocity,cm/s,49.73,26.01,3.2,12.3,23400
+test,payload,tilt,deg,8.5,5.65,1.01,17.8,23400
+test,payload,swing,deg,15.33,12.18,4.89,40.2,23400
+RL,no payload,position,cm,,33.58,0.6,1.8,584
+RL,no payload,velocity,cm/s,108.75,90.69,3.0,3.3,584
+RL,no payload,tilt,deg,21.69,19.29,1.09,5.7,584
+RL,payload,position,cm,,16.81,1.42,8.4,6359
+RL,payload,velocity,cm/s,115.91,32.14,7.58,23.6,6359
+RL,payload,tilt,deg,13.87,7.39,2.1,28.5,6359
+RL,payload,swing,deg,23.91,14.44,5.06,35.0,6359

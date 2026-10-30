@@ -1,5 +1,15 @@
 """Shared parts of the director MPC (waypoint_mpc.py) and the safety filter.
 
+Despite its name, this module contains no optimizer: the director MPC agent
+is in waypoint_mpc.py, the model and the MPC solver in resnet_mpc.py, the
+safety filter in predictive_safety_filter.py. All of them import their
+building blocks from here:
+
+    director_mpc.py ──> resnet_mpc.py ──> waypoint_mpc.py            (MPC director)
+         │                   │
+         │                   └──────────> predictive_safety_filter.py
+         └─────────────────────────────> adaptive_hook_director_safety_filter.py
+
 ``AdaptiveTransportDirectorAviary`` takes velocity commands, low-pass filters
 them (c_k+1 = alpha a_k + (1 - alpha) c_k) and feeds them to a PPO velocity
 controller that produces the rotor commands. The director MPC
@@ -45,6 +55,8 @@ TIP_FLOOR_CLEARANCE = 0.03
 APPROACH_HEIGHT = 0.35           # pre-grasp waypoint: this much above the grasp pose
 GRASP_SNAP = 0.03                # [m] drone-grasp waypoint distance where the hook target takes over
 
+# state / input dimensions and the slices of the state vector (see the
+# module docstring); every model, MPC and filter indexes the state with these
 NX = 19
 NU = 3
 P, V, C, TH, THD, ATT, ATTD = (
@@ -65,12 +77,17 @@ def director_step(env, command, tendon=(0.0, 0.0)):
     ``BaseAviary.step`` at the end, so the tendon command is applied as given
     instead of being gated by the transport task's waypoint/GRAB_FLAG logic.
     """
+    # env action layout: [vx, vy, vz, heading, tendon1, tendon2]
     action = np.hstack([command, 0.0, tendon]).astype(float)
+    # first-order low-pass filter of the action (c_k+1 = alpha a_k + (1 - alpha) c_k);
+    # its output c is what the PPO velocity controller tracks (state C of the model)
     if env.prev_action is None:
         env.prev_action = action
     else:
         action = env.alpha * action + (1.0 - env.alpha) * env.prev_action
         env.prev_action = action.copy()
+    # the frozen PPO velocity controller turns the filtered velocity target
+    # into the four rotor commands
     obs = env._get_low_level_obs(action[0:3], env.TARGET_ORIENTATION)
     low_level, _ = env.controller_model.predict(obs, deterministic=True)
     return BaseAviary.step(env, np.hstack([low_level[0:4], action[-2:]]))
@@ -92,8 +109,12 @@ def measure_swing(env):
     rot_p = data.xmat[target].reshape(3, 3)
     dof = model.jnt_dofadr[env.target_joint_id]
     omega = rot_p @ data.qvel[dof + 3:dof + 6]          # free joint: local frame
+    # u: unit vector along the payload's -z axis (points down when the
+    # payload hangs straight); its time derivative from the angular velocity
     u = -rot_p[:, 2]
     u_dot = np.cross(omega, u)
+    # projected angles in the x-z and y-z planes, and their rates
+    # (d/dt atan2(a, b) = (b a_dot - a b_dot) / (a^2 + b^2))
     th = np.array([np.arctan2(u[0], -u[2]), np.arctan2(u[1], -u[2])])
     den_x = u[0] ** 2 + u[2] ** 2
     den_y = u[1] ** 2 + u[2] ** 2
@@ -116,12 +137,16 @@ def attitude(env):
     mujoco.mju_quat2Mat(R, env.quat[0])
     R = R.reshape(3, 3)
     w_body = env.ang_v[0]
+    # body z axis in the world frame and its rate (world angular velocity x z)
     z = R[:, 2]
     z_dot = np.cross(R @ w_body, z)
+    # tilt of z towards world y (roll_w) and world x (pitch_w), and their
+    # rates by differentiating the atan2
     roll_w = -np.arctan2(z[1], z[2])
     pitch_w = np.arctan2(z[0], z[2])
     roll_w_dot = -(z[2] * z_dot[1] - z[1] * z_dot[2]) / max(z[1] ** 2 + z[2] ** 2, 1e-9)
     pitch_w_dot = (z[2] * z_dot[0] - z[0] * z_dot[2]) / max(z[0] ** 2 + z[2] ** 2, 1e-9)
+    # ZYX Euler yaw rate from the body rates p, q, r
     roll, pitch, yaw = env.rpy[0]
     _, q, r = w_body
     yaw_dot = (q * np.sin(roll) + r * np.cos(roll)) / max(np.cos(pitch), 1e-6)
@@ -148,6 +173,10 @@ def measure_state(env, attached):
 
 @dataclass
 class DirectorWeights:
+    """Cost weights of ResNetMPC (diagonal): position per axis, velocity,
+    payload swing angle / rate (mode 1 only), command size, command change,
+    and the factor of the last step (terminal cost). waypoint_mpc.py sets its
+    own values (WAYPOINT_WEIGHTS)."""
     pos: tuple = (40.0, 40.0, 60.0)
     vel: float = 2.0
     swing: float = 5.0
@@ -157,7 +186,7 @@ class DirectorWeights:
     terminal: float = 5.0
 
 
-U_MAX = 0.8
+U_MAX = 0.8            # bound of the MPC's velocity commands [m/s]
 # Close the hook harder once the payload is off its stand: with the grasp
 # command (0.6) thin cylinders can slide out of the hook while hovering.
 TENDON_HOLD = 1.0
@@ -192,6 +221,8 @@ def payload_attached(env, rest_z, attached):
         return True
     target_geom = env.target_geom_id
     hook_geoms = {m.geom(f"segment_geom_{i}").id for i in range(1, 8)}
+    # attached = the hook touches the cylinder AND the cylinder is 2 cm
+    # above its resting height (lifted, not only touched)
     touching = any(
         (c.geom1 == target_geom and c.geom2 in hook_geoms)
         or (c.geom2 == target_geom and c.geom1 in hook_geoms)
@@ -258,12 +289,17 @@ class WaypointTarget:
         self.hook = None
 
     def __call__(self, env, attached):
+        """(target position, active waypoint index)."""
         idx = int(min(env.current_waypoint_idx[0], len(env.WAYPOINTS) - 1))
         w = np.asarray(env.WAYPOINTS[idx], float)
         grasp_idx = 2 if env.PAYLOAD_TERMINATION else 1
+        # every waypoint but the grasp (and the grasp once the payload is on
+        # the hook): the waypoint itself
         if idx != grasp_idx or attached:
             self.hook = None
             return w, idx
+        # near the grasp waypoint: freeze a corrected target once, so that
+        # hook segment 2 ends up R + 1 cm from the payload centre
         if self.hook is None and np.linalg.norm(env.pos[0] - w) < GRASP_SNAP:
             a = env.target_qpos_adr
             d = env.data.qpos[a:a + 3] - env.data.xpos[env.segment_2_id]
@@ -308,7 +344,11 @@ def collect(seed, hold_time=8.0, excite=0.15, max_time=45.0, gain=1.5, verbose=T
     x = measure_state(env, attached)
     while t < max_time:
         w, idx = target(env, attached)
-        cmd = gain * (w - x[0:3])
+        cmd = gain * (w - x[0:3])        # P-controller on the position error
+        # excitation: random piecewise-constant noise on the command (70 % of
+        # the segments, 10-40 steps each), so the data cover more of the
+        # state / input space than the smooth P-controller alone; off near
+        # the payload, where it would spoil the grasp
         if not (1 <= idx <= grasp_idx):
             if noise_left <= 0:
                 noise = rng.uniform(-excite, excite, 3) * (rng.random() < 0.7)
@@ -316,6 +356,7 @@ def collect(seed, hold_time=8.0, excite=0.15, max_time=45.0, gain=1.5, verbose=T
             noise_left -= 1
             cmd = cmd + noise
         cmd = np.clip(cmd, -U_MAX, U_MAX)
+        # training sample: state before the step and the command applied in it
         log["x"].append(x)
         log["u"].append(cmd)
         log["attached"].append(attached)

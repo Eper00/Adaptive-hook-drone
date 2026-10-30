@@ -23,7 +23,7 @@ into one of
 
 Figures (results/analysis/methods/):
     overview.png         outcomes, success vs payload mass, time to goal,
-                         max tilt, command roughness, computation per step
+                         max tilt, command roughness (filtered command), computation per step
     rescue_matrix.png    RL outcome -> RL + filter outcome (and -> MPC)
     paired_outcomes.png  every scenario, every method
     rescue_gallery.png   every RL failure: tilt and height of RL vs RL + filter,
@@ -350,9 +350,11 @@ def plot_overview(results, out):
                     for k in kinds], "Time to the goal with the payload (successes)", "[s]")
     box(axs[1, 0], [[tilt_deg(e).max() for e in results[k]] for k in kinds],
         "Max tilt per episode (dotted: filter limit)", "[deg]", np.degrees(lim.max_tilt))
-    box(axs[1, 1], [[np.mean(np.linalg.norm(np.diff(e["cmd"], axis=0), axis=1)) * 48
+    # roughness of the low-pass filtered command: what the velocity controller
+    # tracks (all three methods pass the env's filter)
+    box(axs[1, 1], [[np.mean(np.linalg.norm(np.diff(e["cmd_filtered"], axis=0), axis=1)) * 48
                      for e in results[k]] for k in kinds],
-        "Command roughness  mean |d cmd/dt|", "[m/s²]")
+        "Command roughness  mean |d c/dt| (filtered command)", "[m/s²]")
     box(axs[1, 2], [[1e3 * np.median(e["step_time"]) for e in results[k]] for k in kinds],
         "Computation per control step (episode median)", "[ms]", 1e3 / 48, log=True)
     axs[1, 2].text(0.02, 1e3 / 48 * 1.1, "real time (20.8 ms)", color="#d1453b", fontsize=8,

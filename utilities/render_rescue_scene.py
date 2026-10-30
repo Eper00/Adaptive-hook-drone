@@ -121,6 +121,11 @@ PRESETS = {
              notes={("director", 2): "overshoot, large swing", ("director", 3): "flips over",
                     ("director_mpc", 3): "holds the goal", ("director_safety", 1): "filter intervenes",
                     ("director_safety", 3): "holds the goal"}),
+    1290: dict(times_rl=[2.3, 3.0, 3.5, 3.78], times_mpc=[4.4, 5.0, 5.7, 7.0],
+               lookat=[0.75, 0.9, 0.55], distance=3.2, azimuth=90.0, elevation=-20.0,
+               notes={("director", 1): "overshoots the goal", ("director", 3): "flips over",
+                      ("director_mpc", 3): "holds the goal", ("director_safety", 0): "filter intervened",
+                      ("director_safety", 3): "holds the goal"}),
     32: dict(times_rl=[1.95, 2.8, 3.5, 4.1], times_mpc=[3.9, 4.6, 5.3, 6.3],
              lookat=[0.3, 0.75, 0.45], distance=3.3, azimuth=90.0, elevation=-22.0,
              notes={("director", 0): "drags the payload", ("director", 2): "large swing",
@@ -133,7 +138,7 @@ PRESETS = {
 def main():
     floats = lambda s: [float(v) for v in s.split(",")]
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    p.add_argument("--seed", type=int, default=83, help=f"presets: {sorted(PRESETS)}")
+    p.add_argument("--seed", type=int, default=1290, help=f"presets: {sorted(PRESETS)}")
     p.add_argument("--times_rl", type=floats, default=None,
                    help="frame times of the RL director and RL + safety filter [s]")
     p.add_argument("--times_mpc", type=floats, default=None, help="frame times of the MPC director [s]")

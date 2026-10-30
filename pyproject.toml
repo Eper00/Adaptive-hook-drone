@@ -19,21 +19,12 @@ dependencies = [
 rl = ["stable-baselines3>=2.0.0"]
 marl = ["pettingzoo>=1.24.0"]
 viz = ["matplotlib>=3.5.0"]
-gpu = ["jax[cuda12]", "mujoco-mjx>=3.0.0"]
 all = [
     "stable-baselines3>=2.0.0",
     "pettingzoo>=1.24.0",
     "matplotlib>=3.5.0",
     "Pillow>=9.0.0",
-    "jax[cuda12]",
-    "mujoco-mjx>=3.0.0",
-]
-dev = [
-    "pytest>=7.0",
 ]
 
 [tool.setuptools.packages.find]
 include = ["multi_drone_mujoco*"]
-
-[tool.pytest.ini_options]
-testpaths = ["multi_drone_mujoco/tests"]

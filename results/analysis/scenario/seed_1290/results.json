@@ -1,0 +1,99 @@
+{
+ "scenario": {
+  "seed": 1290,
+  "payload_position": [
+   -0.07791351704723981,
+   0.5492381015672474,
+   0.6366569502855306
+  ],
+  "payload_center": [
+   -0.07791351704723981,
+   0.5492381015672474,
+   0.3916569502855306
+  ],
+  "goal_position": [
+   1.121254173861045,
+   1.2967916894591651,
+   1.0
+  ],
+  "payload_mass": 0.24913416393682367,
+  "payload_radius": 0.028965954622688913,
+  "yaw": 0.8288606060383974,
+  "start_position": [
+   0.0,
+   0.0,
+   0.5
+  ],
+  "grasp_position": [
+   -0.07791351704723981,
+   0.6032040561899363,
+   0.6166569502855306
+  ],
+  "waypoints": [
+   [
+    0.0,
+    0.0,
+    1.0
+   ],
+   [
+    -0.07791351704723981,
+    0.6032040561899363,
+    0.9666569502855306
+   ],
+   [
+    -0.07791351704723981,
+    0.6032040561899363,
+    0.6166569502855306
+   ],
+   [
+    1.121254173861045,
+    1.2967916894591651,
+    1.0
+   ]
+  ]
+ },
+ "methods": {
+  "director": {
+   "name": "RL director",
+   "outcome": "stability",
+   "event_time": 3.7916666666666763,
+   "event_stage": "goal",
+   "time_to_goal": null,
+   "pickup_time": 2.041666666666664,
+   "path_length": 4.441172642703299,
+   "max_tilt_deg": 92.23401404815,
+   "max_speed": 4.28113330835412,
+   "max_swing_deg": 79.8597173133468,
+   "command_roughness": 5.465080102678376,
+   "filter_active_percent": 0.0
+  },
+  "director_mpc": {
+   "name": "MPC director",
+   "outcome": "success",
+   "event_time": 5.729166666666653,
+   "event_stage": "goal",
+   "time_to_goal": 5.729166666666653,
+   "pickup_time": 4.354166666666672,
+   "path_length": 3.440343159096244,
+   "max_tilt_deg": 13.164584683469585,
+   "max_speed": 1.2425538796542843,
+   "max_swing_deg": 25.313478727148368,
+   "command_roughness": 0.8432269166623716,
+   "filter_active_percent": 0.0
+  },
+  "director_safety": {
+   "name": "RL director + safety filter",
+   "outcome": "success",
+   "event_time": 3.562500000000008,
+   "event_stage": "goal",
+   "time_to_goal": 3.562500000000008,
+   "pickup_time": 2.2499999999999987,
+   "path_length": 3.421508385337298,
+   "max_tilt_deg": 18.628134129522213,
+   "max_speed": 1.260197128932002,
+   "max_swing_deg": 23.31836385230222,
+   "command_roughness": 6.677880537786976,
+   "filter_active_percent": 4.622871046228711
+  }
+ }
+}

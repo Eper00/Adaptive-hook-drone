@@ -1,0 +1,21 @@
+mode,state,unit,rmse_0.25s,rmse_0.5s,rmse_1s,windows
+no payload,p_x,cm,0.103,0.256,0.506,29012
+no payload,p_y,cm,0.18,0.482,1.088,29012
+no payload,p_z,cm,0.246,0.522,1.041,29012
+no payload,v_x,cm/s,0.686,0.767,0.766,29012
+no payload,v_y,cm/s,1.15,1.349,1.367,29012
+no payload,v_z,cm/s,1.496,1.524,1.511,29012
+no payload,tilde{phi},deg,0.329,0.375,0.385,29012
+no payload,tilde{theta},deg,0.222,0.235,0.236,29012
+no payload,psi,deg,0.613,0.625,0.638,29012
+payload,p_x,cm,0.212,0.477,0.866,23400
+payload,p_y,cm,0.204,0.545,1.126,23400
+payload,p_z,cm,0.349,0.859,1.868,23400
+payload,v_x,cm/s,1.245,1.331,1.391,23400
+payload,v_y,cm/s,1.393,1.789,1.905,23400
+payload,v_z,cm/s,2.138,2.414,2.546,23400
+payload,tilde{phi},deg,0.508,0.723,0.818,23400
+payload,tilde{theta},deg,0.525,0.808,0.902,23400
+payload,psi,deg,0.522,0.574,0.542,23400
+payload,beta_x,deg,2.189,4.242,4.556,23400
+payload,beta_y,deg,1.983,3.362,3.728,23400
